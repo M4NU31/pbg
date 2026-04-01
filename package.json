@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
-    "build": "npm run build:embed && cd apps/web && npx prisma migrate deploy && npx next build",
+    "build": "npm run build:embed && cd apps/web && npx prisma generate && npx next build",
     "build:embed": "npm run build --workspace=packages/embed",
     "start": "npm run start --workspace=apps/web",
     "db:migrate": "npm run db:migrate --workspace=apps/web",
