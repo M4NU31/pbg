@@ -30,14 +30,14 @@ export function LoginForm() {
         </div>
         <CardTitle className="text-xl">Welcome back</CardTitle>
         <CardDescription>
-          Sign in with your <strong>@punchteam.com</strong> Google account to continue.
+          Sign in with your Google account to continue.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
           <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive text-center">
             {error === "AccessDenied"
-              ? "Access denied. Only @punchteam.com accounts are allowed."
+              ? "Access denied. Please try a different account."
               : "An error occurred. Please try again."}
           </div>
         )}
@@ -55,7 +55,7 @@ export function LoginForm() {
           Sign in with Google
         </Button>
         <p className="text-xs text-center text-muted-foreground">
-          Access restricted to @punchteam.com accounts
+          Sign in with any Google account
         </p>
       </CardContent>
     </Card>
