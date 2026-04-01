@@ -6,16 +6,17 @@ import { useEffect } from "react";
 import Image from "next/image";
 
 export function LoginForm() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   useEffect(() => {
-    if (session) router.push("/dashboard");
-  }, [session, router]);
+    if (status === "authenticated") router.replace(callbackUrl);
+  }, [status, router, callbackUrl]);
 
-  if (status === "loading") return null;
+  if (status === "loading" || status === "authenticated") return null;
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-sm px-4">
