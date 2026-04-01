@@ -1,6 +1,19 @@
 import { PunchBug } from "./core/PunchBug";
 
-function init() {
+async function checkAuth(apiUrl: string, embedKey: string): Promise<boolean> {
+  try {
+    const url = new URL(apiUrl);
+    const checkUrl = `${url.origin}/api/embed/auth-check?key=${encodeURIComponent(embedKey)}`;
+    const res = await fetch(checkUrl, { credentials: "include" });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return data.allowed === true;
+  } catch {
+    return false;
+  }
+}
+
+async function init() {
   // Find the <script> tag that loaded this bundle
   const scripts = document.querySelectorAll("script[data-key]");
   let scriptEl: Element | null = null;
@@ -25,6 +38,9 @@ function init() {
     console.warn("PunchBug: data-key attribute is required.");
     return;
   }
+
+  const allowed = await checkAuth(apiUrl, embedKey);
+  if (!allowed) return;
 
   new PunchBug({ embedKey, apiUrl, position });
 }
