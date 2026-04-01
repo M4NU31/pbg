@@ -10,6 +10,7 @@
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build:embed && npm run build --workspace=apps/web",
     "build:embed": "npm run build --workspace=packages/embed",
+    "start": "npm run start --workspace=apps/web",
     "db:migrate": "npm run db:migrate --workspace=apps/web",
     "db:studio": "npm run db:studio --workspace=apps/web"
   }
