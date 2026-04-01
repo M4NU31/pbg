@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import useSWR from "swr";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -286,12 +286,12 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
               <div className="space-y-4">
                 {task.comments?.map((c: any) => (
                   <div key={c.id} className="flex gap-3">
-                    <Avatar className="h-7 w-7 shrink-0">
-                      <AvatarImage src={c.author?.image ?? undefined} />
-                      <AvatarFallback className="text-xs">
-                        {c.author?.name?.charAt(0).toUpperCase() ?? c.guestName?.charAt(0).toUpperCase() ?? "?"}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                      name={c.author?.name ?? c.guestName}
+                      email={c.author?.email}
+                      image={c.author?.image}
+                      className="h-7 w-7 shrink-0"
+                    />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-medium">{c.author?.name || c.guestName || "Guest"}</span>

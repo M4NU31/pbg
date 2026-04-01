@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, execute, withTransaction, connExecute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
+import { gravatarUrl } from "@/lib/gravatar";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
@@ -33,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const [comments, attachments, activities] = await Promise.all([
     query<Record<string, unknown>>(
-      `SELECT c.*, u.id as au_id, u.name as au_name, u.image as au_image
+      `SELECT c.*, u.id as au_id, u.name as au_name, u.image as au_image, u.email as au_email
        FROM Comment c LEFT JOIN User u ON c.authorId = u.id
        WHERE c.taskId = ? ORDER BY c.createdAt ASC`,
       [taskId]
@@ -50,12 +51,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   return NextResponse.json({
     ...row,
-    assignee: row.a_id ? { id: row.a_id, name: row.a_name, image: row.a_image, email: row.a_email } : null,
+    assignee: row.a_id ? { id: row.a_id, name: row.a_name, email: row.a_email, image: (row.a_image as string | null) ?? gravatarUrl(row.a_email as string) } : null,
     creator: row.c_id ? { id: row.c_id, name: row.c_name } : null,
     comments: comments.map((c) => ({
       id: c.id, taskId: c.taskId, authorId: c.authorId, guestName: c.guestName,
       body: c.body, createdAt: c.createdAt, updatedAt: c.updatedAt,
-      author: c.au_id ? { id: c.au_id, name: c.au_name, image: c.au_image } : null,
+      author: c.au_id ? { id: c.au_id, name: c.au_name, email: c.au_email, image: (c.au_image as string | null) ?? gravatarUrl(c.au_email as string) } : null,
     })),
     attachments,
     activities,

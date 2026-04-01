@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, withTransaction, connExecute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
+import { gravatarUrl } from "@/lib/gravatar";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
@@ -17,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const rows = await query<Record<string, unknown>>(
-    `SELECT c.*, u.id as au_id, u.name as au_name, u.image as au_image
+    `SELECT c.*, u.id as au_id, u.name as au_name, u.image as au_image, u.email as au_email
      FROM Comment c LEFT JOIN User u ON c.authorId = u.id
      WHERE c.taskId = ? ORDER BY c.createdAt ASC`,
     [taskId]
@@ -27,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     rows.map((c) => ({
       id: c.id, taskId: c.taskId, authorId: c.authorId, guestName: c.guestName,
       body: c.body, createdAt: c.createdAt, updatedAt: c.updatedAt,
-      author: c.au_id ? { id: c.au_id, name: c.au_name, image: c.au_image } : null,
+      author: c.au_id ? { id: c.au_id, name: c.au_name, email: c.au_email, image: (c.au_image as string | null) ?? gravatarUrl(c.au_email as string) } : null,
     }))
   );
 }
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
 
   const row = await queryOne<Record<string, unknown>>(
-    `SELECT c.*, u.id as au_id, u.name as au_name, u.image as au_image
+    `SELECT c.*, u.id as au_id, u.name as au_name, u.image as au_image, u.email as au_email
      FROM Comment c LEFT JOIN User u ON c.authorId = u.id
      WHERE c.id = ?`,
     [commentId]

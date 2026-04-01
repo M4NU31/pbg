@@ -3,7 +3,8 @@
 import { Draggable } from "@hello-pangea/dnd";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"; // Avatar still used for guest indicator
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { MessageSquare, Paperclip, Monitor, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,12 +83,12 @@ export function TaskCard({ task, index, onClick }: TaskCardProps) {
                   )}
                 </div>
                 {task.assignee && (
-                  <Avatar className="h-5 w-5">
-                    <AvatarImage src={task.assignee.image ?? undefined} />
-                    <AvatarFallback className="text-[10px]">
-                      {task.assignee.name?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    name={task.assignee.name}
+                    email={task.assignee.email}
+                    image={task.assignee.image}
+                    className="h-5 w-5"
+                  />
                 )}
                 {!task.assignee && (task.guestName || task.guestEmail) && (
                   <Avatar className="h-5 w-5">

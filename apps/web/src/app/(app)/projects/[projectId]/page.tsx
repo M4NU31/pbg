@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { queryOne, query } from "@/lib/db";
+import { gravatarUrl } from "@/lib/gravatar";
 import { notFound, redirect } from "next/navigation";
 import { KanbanBoard } from "@/components/board/KanbanBoard";
 
@@ -58,7 +59,12 @@ export default async function ProjectPage({
       </div>
       <KanbanBoard
         projectId={project.id}
-        members={memberUsers as { id: string; name: string | null; email: string; image: string | null }[]}
+        members={memberUsers.map((u) => ({
+          id: u.id as string,
+          name: (u.name as string | null) ?? null,
+          email: u.email as string,
+          image: (u.image as string | null) ?? gravatarUrl(u.email as string),
+        }))}
         currentUserId={session.user.id}
         currentUserRole={memberRow.role as string}
       />

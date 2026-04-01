@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, withTransaction, connExecute, connQueryOne } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
+import { gravatarUrl } from "@/lib/gravatar";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string }> };
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const rows = await query<Record<string, unknown>>(
     `SELECT t.*,
-     u1.id as a_id, u1.name as a_name, u1.image as a_image,
+     u1.id as a_id, u1.name as a_name, u1.image as a_image, u1.email as a_email,
      u2.id as c_id, u2.name as c_name,
      (SELECT COUNT(*) FROM Comment WHERE taskId = t.id) as commentCount,
      (SELECT COUNT(*) FROM Attachment WHERE taskId = t.id) as attachmentCount
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       screenWidth: row.screenWidth, screenHeight: row.screenHeight,
       viewportWidth: row.viewportWidth, viewportHeight: row.viewportHeight,
       userAgent: row.userAgent, createdAt: row.createdAt, updatedAt: row.updatedAt,
-      assignee: row.a_id ? { id: row.a_id, name: row.a_name, image: row.a_image } : null,
+      assignee: row.a_id ? { id: row.a_id, name: row.a_name, email: row.a_email, image: (row.a_image as string | null) ?? gravatarUrl(row.a_email as string) } : null,
       creator: row.c_id ? { id: row.c_id, name: row.c_name } : null,
       _count: { comments: Number(row.commentCount), attachments: Number(row.attachmentCount) },
     }))
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const row = await queryOne<Record<string, unknown>>(
     `SELECT t.*,
-     u1.id as a_id, u1.name as a_name, u1.image as a_image,
+     u1.id as a_id, u1.name as a_name, u1.image as a_image, u1.email as a_email,
      u2.id as c_id, u2.name as c_name
      FROM Task t
      LEFT JOIN User u1 ON t.assigneeId = u1.id
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   return NextResponse.json(
     {
       ...row,
-      assignee: row!.a_id ? { id: row!.a_id, name: row!.a_name, image: row!.a_image } : null,
+      assignee: row!.a_id ? { id: row!.a_id, name: row!.a_name, email: row!.a_email, image: (row!.a_image as string | null) ?? gravatarUrl(row!.a_email as string) } : null,
       creator: row!.c_id ? { id: row!.c_id, name: row!.c_name } : null,
       _count: { comments: 0, attachments: 0 },
     },

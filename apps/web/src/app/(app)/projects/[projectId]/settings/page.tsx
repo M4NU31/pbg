@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { queryOne, query, parseJson } from "@/lib/db";
+import { gravatarUrl } from "@/lib/gravatar";
 import { notFound, redirect } from "next/navigation";
 import { EmbedSnippet } from "@/components/projects/EmbedSnippet";
 import { MemberList } from "@/components/projects/MemberList";
@@ -63,7 +64,7 @@ export default async function ProjectSettingsPage({
         id: row.u_id as string,
         name: (row.u_name as string | null) ?? null,
         email: row.u_email as string,
-        image: (row.u_image as string | null) ?? null,
+        image: (row.u_image as string | null) ?? gravatarUrl(row.u_email as string),
       },
     })),
   };
