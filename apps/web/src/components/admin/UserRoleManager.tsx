@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -70,16 +70,12 @@ export function UserRoleManager({ users, currentUserId }: { users: User[]; curre
     <>
       <div className="space-y-3">
         {users.map((user) => {
-          const initials = user.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
           const isSelf = user.id === currentUserId;
           const busy = saving === user.id;
 
           return (
             <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg border bg-card">
-              <Avatar className="h-9 w-9 shrink-0">
-                <AvatarImage src={user.image ?? undefined} />
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-              </Avatar>
+              <UserAvatar name={user.name} email={user.email} image={user.image} className="h-9 w-9" />
 
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{user.name ?? "—"}</p>

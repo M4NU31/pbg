@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSystemRole } from "@/lib/auth-helpers";
+import { gravatarUrl } from "@/lib/gravatar";
 import { Sidebar } from "@/components/layout/Sidebar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -14,10 +15,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const systemRole = await getSystemRole(session.user.id, session.user.email);
+  const avatarUrl = session.user.image ?? gravatarUrl(session.user.email ?? "");
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar user={session.user} systemRole={systemRole} />
+      <Sidebar user={session.user} systemRole={systemRole} avatarUrl={avatarUrl} />
       <main className="flex-1 overflow-auto">
         {children}
       </main>

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { LayoutDashboard, LogOut, Moon, Sun, Archive, Users } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SystemRole } from "@/lib/auth-helpers";
@@ -17,9 +17,10 @@ interface SidebarProps {
     image?: string | null;
   };
   systemRole: SystemRole;
+  avatarUrl?: string;
 }
 
-export function Sidebar({ user, systemRole }: SidebarProps) {
+export function Sidebar({ user, systemRole, avatarUrl }: SidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
@@ -29,12 +30,6 @@ export function Sidebar({ user, systemRole }: SidebarProps) {
     ...(systemRole === "RANK1" ? [{ href: "/admin/users", icon: Users, label: "Manage Users" }] : []),
   ];
 
-  const initials = user.name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) ?? "?";
 
   return (
     <aside className="flex flex-col w-60 border-r bg-card h-full">
@@ -63,10 +58,7 @@ export function Sidebar({ user, systemRole }: SidebarProps) {
 
       <div className="p-4 border-t">
         <div className="flex items-center gap-3 px-2 py-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.image ?? undefined} />
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-          </Avatar>
+          <UserAvatar name={user.name} email={user.email} image={user.image} avatarUrl={avatarUrl} className="h-8 w-8" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.name}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
