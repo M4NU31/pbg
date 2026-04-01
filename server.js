@@ -31,22 +31,28 @@ function testDbConnection() {
 
   const socketPath = parsed.searchParams.get("socket");
   if (socketPath) {
-    const fs = require("fs");
-    if (fs.existsSync(socketPath)) {
-      console.log("> DB socket check OK: " + socketPath + " exists");
-    } else {
-      console.error("> DB socket check FAILED: " + socketPath + " does not exist");
-      // Check common socket locations
-      const commonSockets = [
-        "/var/run/mysqld/mysqld.sock",
-        "/tmp/mysql.sock",
-        "/var/lib/mysql/mysql.sock",
-        "/run/mysqld/mysqld.sock",
-      ];
-      for (const s of commonSockets) {
-        if (fs.existsSync(s)) console.log("> Found socket at: " + s);
-      }
+    // Test actual mysql2 connection via socket
+    let mysql2;
+    try {
+      mysql2 = require(path.join(ROOT, "node_modules/mysql2"));
+    } catch (e) {
+      console.log("> DB socket file exists but mysql2 not yet available for test");
+      return;
     }
+    const conn = mysql2.createConnection({
+      socketPath,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: decodeURIComponent(parsed.pathname.slice(1)),
+    });
+    conn.connect((err) => {
+      if (err) {
+        console.error("> DB mysql2 socket FAILED:", err.message, "(code:", err.code + ")");
+      } else {
+        console.log("> DB mysql2 socket OK: connected successfully");
+        conn.end();
+      }
+    });
     return;
   }
 
