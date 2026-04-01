@@ -29,6 +29,27 @@ function testDbConnection() {
     return;
   }
 
+  const socketPath = parsed.searchParams.get("socket");
+  if (socketPath) {
+    const fs = require("fs");
+    if (fs.existsSync(socketPath)) {
+      console.log("> DB socket check OK: " + socketPath + " exists");
+    } else {
+      console.error("> DB socket check FAILED: " + socketPath + " does not exist");
+      // Check common socket locations
+      const commonSockets = [
+        "/var/run/mysqld/mysqld.sock",
+        "/tmp/mysql.sock",
+        "/var/lib/mysql/mysql.sock",
+        "/run/mysqld/mysqld.sock",
+      ];
+      for (const s of commonSockets) {
+        if (fs.existsSync(s)) console.log("> Found socket at: " + s);
+      }
+    }
+    return;
+  }
+
   const host = parsed.hostname;
   const port = parseInt(parsed.port || "3306", 10);
   const client = net.createConnection({ host, port }, () => {
