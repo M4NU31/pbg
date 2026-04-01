@@ -6,17 +6,20 @@ const next = require("next");
 
 const ROOT = __dirname;
 const WEB_DIR = path.join(ROOT, "apps/web");
-const STATIC_DIR = path.join(WEB_DIR, ".next/static");
+const BUILD_DIR = path.join(WEB_DIR, ".nextbuild");
+const STATIC_DIR = path.join(BUILD_DIR, "static");
 
 // Startup diagnostics
-console.log("> __dirname:", ROOT);
-console.log("> WEB_DIR:", WEB_DIR);
-console.log("> .next/static exists:", fs.existsSync(STATIC_DIR));
+console.log("> BUILD_DIR:", BUILD_DIR);
+console.log("> BUILD_DIR exists:", fs.existsSync(BUILD_DIR));
+console.log("> static exists:", fs.existsSync(STATIC_DIR));
 try {
+  const buildId = fs.readFileSync(path.join(BUILD_DIR, "BUILD_ID"), "utf8").trim();
+  console.log("> BUILD_ID:", buildId);
   const chunks = fs.readdirSync(path.join(STATIC_DIR, "chunks"));
   console.log("> chunks count:", chunks.length, "| first:", chunks[0]);
 } catch (e) {
-  console.log("> chunks dir error:", e.message);
+  console.log("> build info error:", e.message);
 }
 
 const app = next({ dev: false, dir: WEB_DIR });
@@ -39,7 +42,7 @@ function serveStatic(filePath, res) {
   res.setHeader("Content-Type", MIME[ext] || "application/octet-stream");
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
   fs.createReadStream(filePath).on("error", (err) => {
-    console.error("> serveStatic error:", err.message, filePath);
+    console.error("> serveStatic error:", err.message);
     res.statusCode = 404;
     res.end("Not found");
   }).pipe(res);
@@ -87,9 +90,7 @@ app.prepare().then(() => {
     if (pathname.startsWith("/_next/static/")) {
       const relativePath = pathname.slice("/_next/static/".length);
       const filePath = path.join(STATIC_DIR, relativePath);
-      const exists = fs.existsSync(filePath);
-      console.log("> static req:", pathname, "| exists:", exists);
-      if (exists) return serveStatic(filePath, res);
+      if (fs.existsSync(filePath)) return serveStatic(filePath, res);
     }
 
     handle(req, res, parsedUrl);
