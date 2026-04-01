@@ -11,32 +11,35 @@ const STATIC_DIR = path.join(WEB_DIR, ".next/static");
 // Startup diagnostics
 console.log("> __dirname:", ROOT);
 console.log("> WEB_DIR:", WEB_DIR);
-console.log("> WEB_DIR exists:", fs.existsSync(WEB_DIR));
-console.log("> .next exists:", fs.existsSync(path.join(WEB_DIR, ".next")));
 console.log("> .next/static exists:", fs.existsSync(STATIC_DIR));
+try {
+  const chunks = fs.readdirSync(path.join(STATIC_DIR, "chunks"));
+  console.log("> chunks count:", chunks.length, "| first:", chunks[0]);
+} catch (e) {
+  console.log("> chunks dir error:", e.message);
+}
 
 const app = next({ dev: false, dir: WEB_DIR });
 const handle = app.getRequestHandler();
 const port = parseInt(process.env.PORT || "3000", 10);
 
-// MIME types for static assets
 const MIME = {
-  ".js":   "application/javascript; charset=utf-8",
-  ".css":  "text/css; charset=utf-8",
-  ".json": "application/json",
-  ".ico":  "image/x-icon",
-  ".png":  "image/png",
-  ".svg":  "image/svg+xml",
-  ".woff": "font/woff",
-  ".woff2":"font/woff2",
+  ".js":    "application/javascript; charset=utf-8",
+  ".css":   "text/css; charset=utf-8",
+  ".json":  "application/json",
+  ".ico":   "image/x-icon",
+  ".png":   "image/png",
+  ".svg":   "image/svg+xml",
+  ".woff":  "font/woff",
+  ".woff2": "font/woff2",
 };
 
 function serveStatic(filePath, res) {
   const ext = path.extname(filePath);
-  const mime = MIME[ext] || "application/octet-stream";
-  res.setHeader("Content-Type", mime);
+  res.setHeader("Content-Type", MIME[ext] || "application/octet-stream");
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-  fs.createReadStream(filePath).on("error", () => {
+  fs.createReadStream(filePath).on("error", (err) => {
+    console.error("> serveStatic error:", err.message, filePath);
     res.statusCode = 404;
     res.end("Not found");
   }).pipe(res);
@@ -44,27 +47,14 @@ function serveStatic(filePath, res) {
 
 function testDbConnection() {
   const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) {
-    console.error("> DB check FAILED: DATABASE_URL env var is not set");
-    return;
-  }
+  if (!dbUrl) { console.error("> DB check FAILED: DATABASE_URL not set"); return; }
   let parsed;
-  try {
-    parsed = new URL(dbUrl);
-  } catch (e) {
-    console.error("> DB check FAILED: DATABASE_URL is not a valid URL:", e.message);
-    return;
-  }
+  try { parsed = new URL(dbUrl); } catch (e) { console.error("> DB URL invalid:", e.message); return; }
 
   const socketPath = parsed.searchParams.get("socket");
   if (socketPath) {
     let mysql2;
-    try {
-      mysql2 = require(path.join(ROOT, "node_modules/mysql2"));
-    } catch (e) {
-      console.log("> DB socket file exists but mysql2 not yet available for test");
-      return;
-    }
+    try { mysql2 = require(path.join(ROOT, "node_modules/mysql2")); } catch { return; }
     const conn = mysql2.createConnection({
       socketPath,
       user: decodeURIComponent(parsed.username),
@@ -72,12 +62,8 @@ function testDbConnection() {
       database: decodeURIComponent(parsed.pathname.slice(1)),
     });
     conn.connect((err) => {
-      if (err) {
-        console.error("> DB mysql2 socket FAILED:", err.message, "(code:", err.code + ")");
-      } else {
-        console.log("> DB mysql2 socket OK: connected successfully");
-        conn.end();
-      }
+      if (err) console.error("> DB mysql2 socket FAILED:", err.message);
+      else { console.log("> DB mysql2 socket OK: connected successfully"); conn.end(); }
     });
     return;
   }
@@ -86,16 +72,10 @@ function testDbConnection() {
   const host = parsed.hostname;
   const p = parseInt(parsed.port || "3306", 10);
   const client = net.createConnection({ host, port: p }, () => {
-    console.log("> DB TCP check OK:", host + ":" + p);
-    client.destroy();
+    console.log("> DB TCP check OK:", host + ":" + p); client.destroy();
   });
-  client.on("error", (err) => {
-    console.error("> DB TCP check FAILED:", err.message);
-  });
-  client.setTimeout(5000, () => {
-    console.error("> DB TCP check FAILED: timed out");
-    client.destroy();
-  });
+  client.on("error", (err) => console.error("> DB TCP check FAILED:", err.message));
+  client.setTimeout(5000, () => { console.error("> DB TCP check timed out"); client.destroy(); });
 }
 
 app.prepare().then(() => {
@@ -103,13 +83,13 @@ app.prepare().then(() => {
     const parsedUrl = parse(req.url, true);
     const pathname = parsedUrl.pathname || "";
 
-    // Serve _next/static directly from disk — bypasses any proxy/handler issues
+    // Serve _next/static directly from disk
     if (pathname.startsWith("/_next/static/")) {
-      const relativePath = pathname.replace("/_next/static/", "");
+      const relativePath = pathname.slice("/_next/static/".length);
       const filePath = path.join(STATIC_DIR, relativePath);
-      if (fs.existsSync(filePath)) {
-        return serveStatic(filePath, res);
-      }
+      const exists = fs.existsSync(filePath);
+      console.log("> static req:", pathname, "| exists:", exists);
+      if (exists) return serveStatic(filePath, res);
     }
 
     handle(req, res, parsedUrl);
