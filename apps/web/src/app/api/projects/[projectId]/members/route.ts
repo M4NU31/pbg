@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, execute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
+import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string }> };
 
@@ -15,13 +16,20 @@ export async function GET(_req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  const members = await prisma.projectMember.findMany({
-    where: { projectId },
-    include: { user: { select: { id: true, name: true, email: true, image: true } } },
-    orderBy: { joinedAt: "asc" },
-  });
+  const rows = await query<Record<string, unknown>>(
+    `SELECT pm.*, u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image
+     FROM ProjectMember pm JOIN User u ON pm.userId = u.id
+     WHERE pm.projectId = ?
+     ORDER BY pm.joinedAt ASC`,
+    [projectId]
+  );
 
-  return NextResponse.json(members);
+  return NextResponse.json(
+    rows.map((row) => ({
+      id: row.id, projectId: row.projectId, userId: row.userId, role: row.role, joinedAt: row.joinedAt,
+      user: { id: row.u_id, name: row.u_name, email: row.u_email, image: row.u_image },
+    }))
+  );
 }
 
 export async function POST(req: NextRequest, { params }: Params) {
@@ -46,24 +54,42 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
-  const userToInvite = await prisma.user.findUnique({ where: { email } });
+  const userToInvite = await queryOne<Record<string, unknown>>(
+    `SELECT id, name, email, image FROM User WHERE email = ?`,
+    [email]
+  );
   if (!userToInvite) {
     return NextResponse.json({ error: "User not found. They must sign in first." }, { status: 404 });
   }
 
-  const existing = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId: userToInvite.id } },
-  });
+  const existing = await queryOne(
+    `SELECT id FROM ProjectMember WHERE projectId = ? AND userId = ?`,
+    [projectId, userToInvite.id]
+  );
   if (existing) {
     return NextResponse.json({ error: "User is already a member" }, { status: 409 });
   }
 
-  const newMember = await prisma.projectMember.create({
-    data: { projectId, userId: userToInvite.id, role },
-    include: { user: { select: { id: true, name: true, email: true, image: true } } },
-  });
+  const memberId = randomUUID();
+  await execute(
+    `INSERT INTO ProjectMember (id, projectId, userId, role, joinedAt) VALUES (?, ?, ?, ?, NOW())`,
+    [memberId, projectId, userToInvite.id, role]
+  );
 
-  return NextResponse.json(newMember, { status: 201 });
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT pm.*, u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image
+     FROM ProjectMember pm JOIN User u ON pm.userId = u.id
+     WHERE pm.id = ?`,
+    [memberId]
+  );
+
+  return NextResponse.json(
+    {
+      id: row!.id, projectId: row!.projectId, userId: row!.userId, role: row!.role, joinedAt: row!.joinedAt,
+      user: { id: row!.u_id, name: row!.u_name, email: row!.u_email, image: row!.u_image },
+    },
+    { status: 201 }
+  );
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
@@ -83,9 +109,10 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const { userId } = await req.json();
 
-  const targetMember = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId } },
-  });
+  const targetMember = await queryOne<Record<string, unknown>>(
+    `SELECT id, role FROM ProjectMember WHERE projectId = ? AND userId = ?`,
+    [projectId, userId]
+  );
 
   if (!targetMember) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -95,9 +122,6 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Cannot remove project owner" }, { status: 400 });
   }
 
-  await prisma.projectMember.delete({
-    where: { projectId_userId: { projectId, userId } },
-  });
-
+  await execute(`DELETE FROM ProjectMember WHERE projectId = ? AND userId = ?`, [projectId, userId]);
   return new NextResponse(null, { status: 204 });
 }

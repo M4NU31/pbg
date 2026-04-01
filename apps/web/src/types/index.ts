@@ -1,4 +1,14 @@
-export type { TaskStatus, Priority, MemberRole, ActivityType } from "@prisma/client";
+export type TaskStatus = "BACKLOG" | "TODO" | "DOING" | "DONE" | "CLOSED";
+export type Priority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type MemberRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+export type ActivityType =
+  | "TASK_CREATED"
+  | "STATUS_CHANGED"
+  | "PRIORITY_CHANGED"
+  | "ASSIGNEE_CHANGED"
+  | "COMMENT_ADDED"
+  | "ATTACHMENT_ADDED"
+  | "TITLE_CHANGED";
 
 export interface EmbedReportPayload {
   embedKey: string;

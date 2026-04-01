@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { execute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
 import { generateEmbedKey } from "@/lib/utils";
 
@@ -20,10 +20,8 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const project = await prisma.project.update({
-    where: { id: projectId },
-    data: { embedKey: generateEmbedKey() },
-  });
+  const embedKey = generateEmbedKey();
+  await execute(`UPDATE Project SET embedKey = ?, updatedAt = NOW() WHERE id = ?`, [embedKey, projectId]);
 
-  return NextResponse.json({ embedKey: project.embedKey });
+  return NextResponse.json({ embedKey });
 }

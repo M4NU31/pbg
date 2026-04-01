@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, withTransaction, connExecute, connQueryOne, parseJson } from "@/lib/db";
 import { uploadFile } from "@/lib/storage";
 import { EmbedReportPayload } from "@/types";
+import { randomUUID } from "crypto";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -27,14 +28,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  // Find project by embed key
-  const project = await prisma.project.findUnique({ where: { embedKey } });
+  const project = await queryOne<Record<string, unknown>>(
+    `SELECT * FROM Project WHERE embedKey = ?`,
+    [embedKey]
+  );
   if (!project) {
     return NextResponse.json({ error: "Invalid embed key" }, { status: 401, headers: CORS_HEADERS });
   }
 
   // Optional domain validation
-  const allowedDomains = (project.allowedDomains as string[]) ?? [];
+  const allowedDomains = parseJson(project.allowedDomains) as string[];
   const origin = req.headers.get("origin");
   if (allowedDomains.length > 0 && origin) {
     const originHost = new URL(origin).hostname;
@@ -58,50 +61,52 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Create task with sequential number
-  const task = await prisma.$transaction(async (tx) => {
-    const agg = await tx.task.aggregate({
-      where: { projectId: project.id },
-      _max: { taskNumber: true },
-    });
-    const taskNumber = (agg._max.taskNumber ?? 0) + 1;
+  const taskId = randomUUID();
+  const activityId = randomUUID();
+  const projectId = project.id as string;
 
-    return tx.task.create({
-      data: {
-        projectId: project.id,
-        title: title.slice(0, 255),
-        description: description?.slice(0, 5000) || null,
-        taskNumber,
-        status: "BACKLOG",
-        priority: "MEDIUM",
-        guestName: guestName || null,
-        guestEmail: guestEmail || null,
-        screenshotUrl: screenshotUrl || null,
-        domSelector: domSelector.slice(0, 500),
-        domHtml: domHtml?.slice(0, 5000) || null,
-        pageUrl: pageUrl.slice(0, 2000),
-        browserName: browserMeta?.browserName || null,
-        browserVersion: browserMeta?.browserVersion || null,
-        osName: browserMeta?.osName || null,
-        osVersion: browserMeta?.osVersion || null,
-        deviceType: browserMeta?.deviceType || null,
-        screenWidth: browserMeta?.screenWidth || null,
-        screenHeight: browserMeta?.screenHeight || null,
-        viewportWidth: browserMeta?.viewportWidth || null,
-        viewportHeight: browserMeta?.viewportHeight || null,
-        userAgent: browserMeta?.userAgent?.slice(0, 500) || null,
-        activities: {
-          create: {
-            type: "TASK_CREATED",
-            actorName: guestName || "Guest",
-          },
-        },
-      },
-    });
+  const taskNumber = await withTransaction(async (conn) => {
+    const maxRow = await connQueryOne<{ maxNum: number | null }>(
+      conn,
+      `SELECT MAX(taskNumber) as maxNum FROM Task WHERE projectId = ?`,
+      [projectId]
+    );
+    const num = (maxRow?.maxNum ?? 0) + 1;
+
+    await connExecute(
+      conn,
+      `INSERT INTO Task (
+        id, projectId, title, description, taskNumber, status, priority,
+        guestName, guestEmail, screenshotUrl, domSelector, domHtml, pageUrl,
+        browserName, browserVersion, osName, osVersion, deviceType,
+        screenWidth, screenHeight, viewportWidth, viewportHeight, userAgent,
+        createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', 'MEDIUM', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        taskId, projectId, title.slice(0, 255), description?.slice(0, 5000) || null, num,
+        guestName || null, guestEmail || null,
+        screenshotUrl || null, domSelector.slice(0, 500), domHtml?.slice(0, 5000) || null,
+        pageUrl.slice(0, 2000),
+        browserMeta?.browserName || null, browserMeta?.browserVersion || null,
+        browserMeta?.osName || null, browserMeta?.osVersion || null,
+        browserMeta?.deviceType || null,
+        browserMeta?.screenWidth || null, browserMeta?.screenHeight || null,
+        browserMeta?.viewportWidth || null, browserMeta?.viewportHeight || null,
+        browserMeta?.userAgent?.slice(0, 500) || null,
+      ]
+    );
+
+    await connExecute(
+      conn,
+      `INSERT INTO Activity (id, taskId, actorName, type, createdAt) VALUES (?, ?, ?, 'TASK_CREATED', NOW())`,
+      [activityId, taskId, guestName || "Guest"]
+    );
+
+    return num;
   });
 
   return NextResponse.json(
-    { taskId: task.id, taskNumber: task.taskNumber, message: "Bug reported successfully!" },
+    { taskId, taskNumber, message: "Bug reported successfully!" },
     { status: 201, headers: CORS_HEADERS }
   );
 }

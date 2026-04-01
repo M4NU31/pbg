@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { queryOne, parseJson } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export async function requireAuth() {
@@ -11,25 +11,60 @@ export async function requireAuth() {
   return { error: null, session };
 }
 
-export async function requireProjectMember(
+type MemberWithProject = {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: string;
+  joinedAt: Date;
+  project: {
+    id: string;
+    name: string;
+    description: string | null;
+    embedKey: string;
+    allowedDomains: unknown[];
+    ownerId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+};
+
+export async function requireProjectAccess(
   userId: string,
   projectId: string
-) {
-  const member = await prisma.projectMember.findUnique({
-    where: { projectId_userId: { projectId, userId } },
-    include: { project: true },
-  });
-  if (!member) return null;
-  return member;
-}
+): Promise<{ error: null; member: MemberWithProject } | { error: NextResponse; member: null }> {
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT pm.id, pm.projectId, pm.userId, pm.role, pm.joinedAt,
+     p.id as p_id, p.name as p_name, p.description as p_description,
+     p.embedKey as p_embedKey, p.allowedDomains as p_allowedDomains,
+     p.ownerId as p_ownerId, p.createdAt as p_createdAt, p.updatedAt as p_updatedAt
+     FROM ProjectMember pm JOIN Project p ON pm.projectId = p.id
+     WHERE pm.projectId = ? AND pm.userId = ?`,
+    [projectId, userId]
+  );
 
-export async function requireProjectAccess(userId: string, projectId: string) {
-  const member = await requireProjectMember(userId, projectId);
-  if (!member) {
-    return {
-      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-      member: null,
-    };
+  if (!row) {
+    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), member: null };
   }
-  return { error: null, member };
+
+  return {
+    error: null,
+    member: {
+      id: row.id as string,
+      projectId: row.projectId as string,
+      userId: row.userId as string,
+      role: row.role as string,
+      joinedAt: row.joinedAt as Date,
+      project: {
+        id: row.p_id as string,
+        name: row.p_name as string,
+        description: (row.p_description as string | null) ?? null,
+        embedKey: row.p_embedKey as string,
+        allowedDomains: parseJson(row.p_allowedDomains),
+        ownerId: row.p_ownerId as string,
+        createdAt: row.p_createdAt as Date,
+        updatedAt: row.p_updatedAt as Date,
+      },
+    },
+  };
 }

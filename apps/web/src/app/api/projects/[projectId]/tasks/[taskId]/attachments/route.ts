@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, withTransaction, connExecute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
 import { uploadFile } from "@/lib/storage";
+import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
 
@@ -30,30 +31,29 @@ export async function POST(req: NextRequest, { params }: Params) {
   const buffer = Buffer.from(await file.arrayBuffer());
   const url = await uploadFile(buffer, file.name, file.type);
 
-  const attachment = await prisma.$transaction(async (tx) => {
-    const a = await tx.attachment.create({
-      data: {
-        taskId,
-        filename: file.name,
-        storedPath: url,
-        url,
-        mimeType: file.type,
-        sizeBytes: file.size,
-      },
-    });
+  const attachmentId = randomUUID();
+  const activityId = randomUUID();
+  const userId = session!.user.id;
+  const actorName = session!.user.name || session!.user.email || "Unknown";
 
-    await tx.activity.create({
-      data: {
-        taskId,
-        actorId: session!.user.id,
-        actorName: session!.user.name || session!.user.email || "Unknown",
-        type: "ATTACHMENT_ADDED",
-        toValue: file.name,
-      },
-    });
-
-    return a;
+  await withTransaction(async (conn) => {
+    await connExecute(
+      conn,
+      `INSERT INTO Attachment (id, taskId, filename, storedPath, url, mimeType, sizeBytes, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [attachmentId, taskId, file.name, url, url, file.type, file.size]
+    );
+    await connExecute(
+      conn,
+      `INSERT INTO Activity (id, taskId, actorId, actorName, type, toValue, createdAt) VALUES (?, ?, ?, ?, 'ATTACHMENT_ADDED', ?, NOW())`,
+      [activityId, taskId, userId, actorName, file.name]
+    );
   });
+
+  const attachment = await queryOne<Record<string, unknown>>(
+    `SELECT * FROM Attachment WHERE id = ?`,
+    [attachmentId]
+  );
 
   return NextResponse.json(attachment, { status: 201 });
 }

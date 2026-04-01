@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { queryOne, query } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import { KanbanBoard } from "@/components/board/KanbanBoard";
 
@@ -13,16 +13,28 @@ export default async function ProjectPage({
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      projectId_userId: { projectId, userId: session.user.id },
-    },
-    include: { project: { include: { members: { include: { user: true } } } } },
-  });
+  const memberRow = await queryOne<Record<string, unknown>>(
+    `SELECT pm.id, pm.role,
+     p.id as p_id, p.name as p_name, p.description as p_description
+     FROM ProjectMember pm JOIN Project p ON pm.projectId = p.id
+     WHERE pm.projectId = ? AND pm.userId = ?`,
+    [projectId, session.user.id]
+  );
 
-  if (!member) notFound();
+  if (!memberRow) notFound();
 
-  const project = member.project;
+  const memberUsers = await query<Record<string, unknown>>(
+    `SELECT u.id, u.name, u.email, u.image
+     FROM ProjectMember pm JOIN User u ON pm.userId = u.id
+     WHERE pm.projectId = ?`,
+    [projectId]
+  );
+
+  const project = {
+    id: memberRow.p_id as string,
+    name: memberRow.p_name as string,
+    description: (memberRow.p_description as string | null) ?? null,
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -36,9 +48,9 @@ export default async function ProjectPage({
       </div>
       <KanbanBoard
         projectId={project.id}
-        members={project.members.map((m) => m.user)}
+        members={memberUsers as { id: string; name: string | null; email: string; image: string | null }[]}
         currentUserId={session.user.id}
-        currentUserRole={member.role}
+        currentUserRole={memberRow.role as string}
       />
     </div>
   );

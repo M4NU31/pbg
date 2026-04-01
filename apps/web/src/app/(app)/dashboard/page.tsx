@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { query, parseJson } from "@/lib/db";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/projects/ProjectCard";
@@ -10,20 +10,33 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
 
-  const memberships = await prisma.projectMember.findMany({
-    where: { userId: session.user.id },
-    include: {
-      project: {
-        include: {
-          _count: { select: { tasks: true, members: true } },
-          owner: { select: { name: true, image: true } },
-        },
-      },
-    },
-    orderBy: { project: { updatedAt: "desc" } },
-  });
+  const rows = await query<Record<string, unknown>>(
+    `SELECT pm.role,
+     p.id, p.name, p.description, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+     (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
+     (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
+     u.name as ownerName, u.image as ownerImage
+     FROM ProjectMember pm
+     JOIN Project p ON pm.projectId = p.id
+     JOIN User u ON p.ownerId = u.id
+     WHERE pm.userId = ?
+     ORDER BY p.updatedAt DESC`,
+    [session.user.id]
+  );
 
-  const projects = memberships.map((m) => ({ ...m.project, role: m.role }));
+  const projects = rows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string | null) ?? null,
+    embedKey: row.embedKey as string,
+    allowedDomains: parseJson(row.allowedDomains),
+    ownerId: row.ownerId as string,
+    createdAt: row.createdAt as Date,
+    updatedAt: row.updatedAt as Date,
+    _count: { tasks: Number(row.taskCount), members: Number(row.memberCount) },
+    owner: { name: row.ownerName as string, image: (row.ownerImage as string | null) ?? null },
+    role: row.role as string,
+  }));
 
   return (
     <div className="p-8">

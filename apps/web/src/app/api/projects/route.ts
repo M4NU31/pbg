@@ -1,26 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, withTransaction, connExecute, parseJson } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-helpers";
 import { generateEmbedKey } from "@/lib/utils";
+import { randomUUID } from "crypto";
 
 export async function GET() {
   const { error, session } = await requireAuth();
   if (error) return error;
 
-  const memberships = await prisma.projectMember.findMany({
-    where: { userId: session!.user.id },
-    include: {
-      project: {
-        include: {
-          _count: { select: { tasks: true, members: true } },
-          owner: { select: { name: true, image: true } },
-        },
-      },
-    },
-    orderBy: { project: { updatedAt: "desc" } },
-  });
+  const rows = await query<Record<string, unknown>>(
+    `SELECT pm.role,
+     p.id, p.name, p.description, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+     (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
+     (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
+     u.name as ownerName, u.image as ownerImage
+     FROM ProjectMember pm
+     JOIN Project p ON pm.projectId = p.id
+     JOIN User u ON p.ownerId = u.id
+     WHERE pm.userId = ?
+     ORDER BY p.updatedAt DESC`,
+    [session!.user.id]
+  );
 
-  return NextResponse.json(memberships.map((m) => ({ ...m.project, role: m.role })));
+  return NextResponse.json(
+    rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      embedKey: row.embedKey,
+      allowedDomains: parseJson(row.allowedDomains),
+      ownerId: row.ownerId,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      _count: { tasks: Number(row.taskCount), members: Number(row.memberCount) },
+      owner: { name: row.ownerName, image: row.ownerImage },
+      role: row.role,
+    }))
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -34,20 +50,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Project name is required" }, { status: 400 });
   }
 
-  const project = await prisma.$transaction(async (tx) => {
-    const proj = await tx.project.create({
-      data: {
-        name: name.trim(),
-        description: description?.trim() || null,
-        embedKey: generateEmbedKey(),
-        ownerId: session!.user.id,
-      },
-    });
-    await tx.projectMember.create({
-      data: { projectId: proj.id, userId: session!.user.id, role: "OWNER" },
-    });
-    return proj;
+  const projectId = randomUUID();
+  const memberId = randomUUID();
+  const embedKey = generateEmbedKey();
+  const userId = session!.user.id;
+
+  await withTransaction(async (conn) => {
+    await connExecute(
+      conn,
+      `INSERT INTO Project (id, name, description, embedKey, allowedDomains, ownerId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, '[]', ?, NOW(), NOW())`,
+      [projectId, name.trim(), description?.trim() || null, embedKey, userId]
+    );
+    await connExecute(
+      conn,
+      `INSERT INTO ProjectMember (id, projectId, userId, role, joinedAt) VALUES (?, ?, ?, 'OWNER', NOW())`,
+      [memberId, projectId, userId]
+    );
   });
 
-  return NextResponse.json(project, { status: 201 });
+  const project = await queryOne<Record<string, unknown>>(
+    `SELECT * FROM Project WHERE id = ?`,
+    [projectId]
+  );
+
+  return NextResponse.json(
+    { ...project, allowedDomains: parseJson(project!.allowedDomains) },
+    { status: 201 }
+  );
 }

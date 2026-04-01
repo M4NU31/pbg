@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { execute, queryOne, parseJson } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
 
 type Params = { params: Promise<{ projectId: string }> };
@@ -36,16 +36,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const body = await req.json();
   const { name, description, allowedDomains } = body;
 
-  const project = await prisma.project.update({
-    where: { id: projectId },
-    data: {
-      ...(name && { name: name.trim() }),
-      ...(description !== undefined && { description: description?.trim() || null }),
-      ...(allowedDomains !== undefined && { allowedDomains }),
-    },
-  });
+  const setParts: string[] = [];
+  const vals: unknown[] = [];
 
-  return NextResponse.json(project);
+  if (name) { setParts.push("name = ?"); vals.push(name.trim()); }
+  if (description !== undefined) { setParts.push("description = ?"); vals.push(description?.trim() || null); }
+  if (allowedDomains !== undefined) { setParts.push("allowedDomains = ?"); vals.push(JSON.stringify(allowedDomains)); }
+  setParts.push("updatedAt = NOW()");
+  vals.push(projectId);
+
+  await execute(`UPDATE Project SET ${setParts.join(", ")} WHERE id = ?`, vals);
+
+  const project = await queryOne<Record<string, unknown>>(
+    `SELECT * FROM Project WHERE id = ?`,
+    [projectId]
+  );
+
+  return NextResponse.json({ ...project, allowedDomains: parseJson(project!.allowedDomains) });
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
@@ -63,6 +70,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Only the owner can delete a project" }, { status: 403 });
   }
 
-  await prisma.project.delete({ where: { id: projectId } });
+  await execute(`DELETE FROM Project WHERE id = ?`, [projectId]);
   return new NextResponse(null, { status: 204 });
 }
