@@ -71,6 +71,14 @@ function testDbConnection() {
   });
 }
 
+// Diagnostics
+const fs = require("fs");
+console.log("> __dirname:", __dirname);
+console.log("> WEB_DIR:", WEB_DIR);
+console.log("> WEB_DIR exists:", fs.existsSync(WEB_DIR));
+console.log("> .next exists:", fs.existsSync(path.join(WEB_DIR, ".next")));
+console.log("> .next/static exists:", fs.existsSync(path.join(WEB_DIR, ".next/static")));
+
 // Start the server first so static files respond immediately
 app.prepare().then(() => {
   createServer((req, res) => {
