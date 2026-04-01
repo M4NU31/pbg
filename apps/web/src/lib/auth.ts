@@ -3,8 +3,6 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
-const ALLOWED_DOMAIN = "punchteam.com";
-
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -14,13 +12,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ account, profile }) {
-      if (account?.provider === "google") {
-        const email = profile?.email ?? "";
-        if (!email.endsWith(`@${ALLOWED_DOMAIN}`)) {
-          return false;
-        }
-      }
+    async signIn() {
       return true;
     },
     async session({ session, user }) {
