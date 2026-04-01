@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role === "MEMBER" || member!.role === "VIEWER") {
+  if (member!.role === "MEMBER" || member!.role === "VIEWER" || member!.role === "RANK3") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -66,7 +66,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER") {
+  if (member!.role !== "OWNER" && member!.role !== "RANK1") {
     return NextResponse.json({ error: "Only the owner can delete a project" }, { status: 403 });
   }
 

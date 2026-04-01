@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER" && member!.role !== "ADMIN") {
+  if (member!.role !== "OWNER" && member!.role !== "ADMIN" && member!.role !== "RANK1") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -103,7 +103,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER" && member!.role !== "ADMIN") {
+  if (member!.role !== "OWNER" && member!.role !== "ADMIN" && member!.role !== "RANK1") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
