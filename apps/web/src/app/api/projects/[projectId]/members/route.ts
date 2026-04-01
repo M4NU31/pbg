@@ -125,3 +125,35 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   await execute(`DELETE FROM ProjectMember WHERE projectId = ? AND userId = ?`, [projectId, userId]);
   return new NextResponse(null, { status: 204 });
 }
+
+// Transfer project ownership to an existing member
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const { projectId } = await params;
+  const { error, session } = await requireAuth();
+  if (error) return error;
+
+  const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
+  if (accessError) return accessError;
+
+  if (member!.role !== "OWNER" && member!.role !== "RANK1") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { newOwnerId } = await req.json();
+  if (!newOwnerId) return NextResponse.json({ error: "newOwnerId is required" }, { status: 400 });
+
+  const newOwnerMember = await queryOne<{ id: string }>(
+    `SELECT id FROM ProjectMember WHERE projectId = ? AND userId = ?`,
+    [projectId, newOwnerId]
+  );
+  if (!newOwnerMember) {
+    return NextResponse.json({ error: "User is not a project member" }, { status: 404 });
+  }
+
+  // Demote current owner → MEMBER, promote new owner → OWNER, update Project.ownerId
+  await execute(`UPDATE ProjectMember SET role = 'MEMBER' WHERE projectId = ? AND userId = ?`, [projectId, member!.userId]);
+  await execute(`UPDATE ProjectMember SET role = 'OWNER' WHERE projectId = ? AND userId = ?`, [projectId, newOwnerId]);
+  await execute(`UPDATE Project SET ownerId = ? WHERE id = ?`, [newOwnerId, projectId]);
+
+  return NextResponse.json({ ok: true });
+}
