@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -5,7 +6,11 @@ import { Sidebar } from "@/components/layout/Sidebar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session) {
+    const hdrs = await headers();
+    const pathname = hdrs.get("x-invoke-path") ?? "/dashboard";
+    redirect(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
