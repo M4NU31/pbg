@@ -16,14 +16,25 @@ export default async function ProjectSettingsPage({
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const memberRow = await queryOne<Record<string, unknown>>(
-    `SELECT pm.id, pm.role,
-     p.id as p_id, p.name as p_name, p.description as p_description,
-     p.embedKey as p_embedKey, p.allowedDomains as p_allowedDomains
-     FROM ProjectMember pm JOIN Project p ON pm.projectId = p.id
-     WHERE pm.projectId = ? AND pm.userId = ?`,
-    [projectId, session.user.id]
-  );
+  const ADMIN_EMAIL = "manuel@punchteam.com";
+  const isSuperAdmin = session.user.email === ADMIN_EMAIL;
+
+  const memberRow = isSuperAdmin
+    ? await queryOne<Record<string, unknown>>(
+        `SELECT NULL as id, 'ADMIN' as role,
+         p.id as p_id, p.name as p_name, p.description as p_description,
+         p.embedKey as p_embedKey, p.allowedDomains as p_allowedDomains
+         FROM Project p WHERE p.id = ?`,
+        [projectId]
+      )
+    : await queryOne<Record<string, unknown>>(
+        `SELECT pm.id, pm.role,
+         p.id as p_id, p.name as p_name, p.description as p_description,
+         p.embedKey as p_embedKey, p.allowedDomains as p_allowedDomains
+         FROM ProjectMember pm JOIN Project p ON pm.projectId = p.id
+         WHERE pm.projectId = ? AND pm.userId = ?`,
+        [projectId, session.user.id]
+      );
 
   if (!memberRow) notFound();
 
