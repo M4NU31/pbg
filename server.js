@@ -29,10 +29,14 @@ function testDbConnection() {
 
   let mysql2;
   try {
-    mysql2 = require(path.join(WEB_DIR, "node_modules/mysql2"));
+    mysql2 = require(path.join(ROOT, "node_modules/mysql2"));
   } catch (e) {
-    console.log("> DB check skipped: mysql2 not available");
-    return;
+    try {
+      mysql2 = require(path.join(WEB_DIR, "node_modules/mysql2"));
+    } catch (e2) {
+      console.log("> DB check skipped: mysql2 not available");
+      return;
+    }
   }
 
   const conn = mysql2.createConnection(dbUrl);
