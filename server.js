@@ -1,20 +1,48 @@
 const path = require("path");
+const fs = require("fs");
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 
 const ROOT = __dirname;
 const WEB_DIR = path.join(ROOT, "apps/web");
+const STATIC_DIR = path.join(WEB_DIR, ".next/static");
 
-const app = next({
-  dev: false,
-  dir: WEB_DIR,
-});
+// Startup diagnostics
+console.log("> __dirname:", ROOT);
+console.log("> WEB_DIR:", WEB_DIR);
+console.log("> WEB_DIR exists:", fs.existsSync(WEB_DIR));
+console.log("> .next exists:", fs.existsSync(path.join(WEB_DIR, ".next")));
+console.log("> .next/static exists:", fs.existsSync(STATIC_DIR));
+
+const app = next({ dev: false, dir: WEB_DIR });
 const handle = app.getRequestHandler();
 const port = parseInt(process.env.PORT || "3000", 10);
 
+// MIME types for static assets
+const MIME = {
+  ".js":   "application/javascript; charset=utf-8",
+  ".css":  "text/css; charset=utf-8",
+  ".json": "application/json",
+  ".ico":  "image/x-icon",
+  ".png":  "image/png",
+  ".svg":  "image/svg+xml",
+  ".woff": "font/woff",
+  ".woff2":"font/woff2",
+};
+
+function serveStatic(filePath, res) {
+  const ext = path.extname(filePath);
+  const mime = MIME[ext] || "application/octet-stream";
+  res.setHeader("Content-Type", mime);
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  fs.createReadStream(filePath).on("error", () => {
+    res.statusCode = 404;
+    res.end("Not found");
+  }).pipe(res);
+}
+
 function testDbConnection() {
-  const net = require("net");
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
     console.error("> DB check FAILED: DATABASE_URL env var is not set");
@@ -23,7 +51,6 @@ function testDbConnection() {
   let parsed;
   try {
     parsed = new URL(dbUrl);
-    console.log("> DB check: host=" + parsed.hostname + " port=" + (parsed.port || "3306") + " db=" + parsed.pathname.slice(1) + " user=" + parsed.username);
   } catch (e) {
     console.error("> DB check FAILED: DATABASE_URL is not a valid URL:", e.message);
     return;
@@ -31,7 +58,6 @@ function testDbConnection() {
 
   const socketPath = parsed.searchParams.get("socket");
   if (socketPath) {
-    // Test actual mysql2 connection via socket
     let mysql2;
     try {
       mysql2 = require(path.join(ROOT, "node_modules/mysql2"));
@@ -56,33 +82,37 @@ function testDbConnection() {
     return;
   }
 
+  const net = require("net");
   const host = parsed.hostname;
-  const port = parseInt(parsed.port || "3306", 10);
-  const client = net.createConnection({ host, port }, () => {
-    console.log("> DB TCP check OK: " + host + ":" + port + " is reachable");
+  const p = parseInt(parsed.port || "3306", 10);
+  const client = net.createConnection({ host, port: p }, () => {
+    console.log("> DB TCP check OK:", host + ":" + p);
     client.destroy();
   });
   client.on("error", (err) => {
-    console.error("> DB TCP check FAILED: cannot reach " + host + ":" + port + " — " + err.message);
+    console.error("> DB TCP check FAILED:", err.message);
   });
   client.setTimeout(5000, () => {
-    console.error("> DB TCP check FAILED: connection to " + host + ":" + port + " timed out");
+    console.error("> DB TCP check FAILED: timed out");
     client.destroy();
   });
 }
 
-// Diagnostics
-const fs = require("fs");
-console.log("> __dirname:", __dirname);
-console.log("> WEB_DIR:", WEB_DIR);
-console.log("> WEB_DIR exists:", fs.existsSync(WEB_DIR));
-console.log("> .next exists:", fs.existsSync(path.join(WEB_DIR, ".next")));
-console.log("> .next/static exists:", fs.existsSync(path.join(WEB_DIR, ".next/static")));
-
-// Start the server first so static files respond immediately
 app.prepare().then(() => {
   createServer((req, res) => {
-    handle(req, res, parse(req.url, true));
+    const parsedUrl = parse(req.url, true);
+    const pathname = parsedUrl.pathname || "";
+
+    // Serve _next/static directly from disk — bypasses any proxy/handler issues
+    if (pathname.startsWith("/_next/static/")) {
+      const relativePath = pathname.replace("/_next/static/", "");
+      const filePath = path.join(STATIC_DIR, relativePath);
+      if (fs.existsSync(filePath)) {
+        return serveStatic(filePath, res);
+      }
+    }
+
+    handle(req, res, parsedUrl);
   }).listen(port, "0.0.0.0", () => {
     console.log("> Ready on port " + port);
     testDbConnection();
