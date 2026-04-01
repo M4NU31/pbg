@@ -1,10 +1,22 @@
 import type { Adapter } from "next-auth/adapters";
 import { randomUUID } from "crypto";
-import { query, queryOne, execute } from "./db";
+import { queryOne, execute } from "./db";
+
+type CreateUserData = { name?: string | null; email: string; emailVerified?: Date | null; image?: string | null };
+type UpdateUserData = { id: string; name?: string | null; email?: string; emailVerified?: Date | null; image?: string | null };
+type LinkAccountData = {
+  userId: string; type: string; provider: string; providerAccountId: string;
+  refresh_token?: string | null; access_token?: string | null; expires_at?: number | null;
+  token_type?: string | null; scope?: string | null; id_token?: string | null; session_state?: string | null;
+};
+type CreateSessionData = { sessionToken: string; userId: string; expires: Date };
+type UpdateSessionData = { sessionToken: string; expires?: Date };
+type CreateVerificationTokenData = { identifier: string; token: string; expires: Date };
+type UseVerificationTokenData = { identifier: string; token: string };
 
 export function createMysql2AuthAdapter(): Adapter {
   return {
-    async createUser(user) {
+    async createUser(user: CreateUserData) {
       const id = randomUUID();
       await execute(
         `INSERT INTO User (id, name, email, emailVerified, image, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
@@ -15,17 +27,17 @@ export function createMysql2AuthAdapter(): Adapter {
       return created!;
     },
 
-    async getUser(id) {
+    async getUser(id: string) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return queryOne<any>(`SELECT * FROM User WHERE id = ?`, [id]);
     },
 
-    async getUserByEmail(email) {
+    async getUserByEmail(email: string) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return queryOne<any>(`SELECT * FROM User WHERE email = ?`, [email]);
     },
 
-    async getUserByAccount({ providerAccountId, provider }) {
+    async getUserByAccount({ providerAccountId, provider }: { providerAccountId: string; provider: string }) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return queryOne<any>(
         `SELECT u.* FROM User u JOIN Account a ON u.id = a.userId WHERE a.provider = ? AND a.providerAccountId = ?`,
@@ -33,7 +45,7 @@ export function createMysql2AuthAdapter(): Adapter {
       );
     },
 
-    async updateUser(user) {
+    async updateUser(user: UpdateUserData) {
       const sets: string[] = [];
       const vals: unknown[] = [];
       if (user.name !== undefined) { sets.push("name = ?"); vals.push(user.name); }
@@ -48,29 +60,19 @@ export function createMysql2AuthAdapter(): Adapter {
       return updated!;
     },
 
-    async linkAccount(account) {
+    async linkAccount(account: LinkAccountData): Promise<void> {
       const id = randomUUID();
       await execute(
         `INSERT INTO Account (id, userId, type, provider, providerAccountId, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          id,
-          account.userId,
-          account.type,
-          account.provider,
-          account.providerAccountId,
-          account.refresh_token ?? null,
-          account.access_token ?? null,
-          account.expires_at ?? null,
-          account.token_type ?? null,
-          account.scope ?? null,
-          account.id_token ?? null,
-          account.session_state ?? null,
+          id, account.userId, account.type, account.provider, account.providerAccountId,
+          account.refresh_token ?? null, account.access_token ?? null, account.expires_at ?? null,
+          account.token_type ?? null, account.scope ?? null, account.id_token ?? null, account.session_state ?? null,
         ]
       );
-      return account;
     },
 
-    async createSession({ sessionToken, userId, expires }) {
+    async createSession({ sessionToken, userId, expires }: CreateSessionData) {
       const id = randomUUID();
       await execute(
         `INSERT INTO Session (id, sessionToken, userId, expires) VALUES (?, ?, ?, ?)`,
@@ -79,23 +81,17 @@ export function createMysql2AuthAdapter(): Adapter {
       return { sessionToken, userId, expires };
     },
 
-    async getSessionAndUser(sessionToken) {
+    async getSessionAndUser(sessionToken: string) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const session = await queryOne<any>(
-        `SELECT * FROM Session WHERE sessionToken = ?`,
-        [sessionToken]
-      );
+      const session = await queryOne<any>(`SELECT * FROM Session WHERE sessionToken = ?`, [sessionToken]);
       if (!session) return null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const user = await queryOne<any>(`SELECT * FROM User WHERE id = ?`, [session.userId]);
       if (!user) return null;
-      return {
-        session: { ...session, expires: new Date(session.expires) },
-        user,
-      };
+      return { session: { ...session, expires: new Date(session.expires) }, user };
     },
 
-    async updateSession({ sessionToken, expires }) {
+    async updateSession({ sessionToken, expires }: UpdateSessionData) {
       if (expires) {
         await execute(`UPDATE Session SET expires = ? WHERE sessionToken = ?`, [expires, sessionToken]);
       }
@@ -104,11 +100,11 @@ export function createMysql2AuthAdapter(): Adapter {
       return session ? { ...session, expires: new Date(session.expires) } : null;
     },
 
-    async deleteSession(sessionToken) {
+    async deleteSession(sessionToken: string) {
       await execute(`DELETE FROM Session WHERE sessionToken = ?`, [sessionToken]);
     },
 
-    async createVerificationToken({ identifier, expires, token }) {
+    async createVerificationToken({ identifier, expires, token }: CreateVerificationTokenData) {
       await execute(
         `INSERT INTO VerificationToken (identifier, token, expires) VALUES (?, ?, ?)`,
         [identifier, token, expires]
@@ -116,17 +112,14 @@ export function createMysql2AuthAdapter(): Adapter {
       return { identifier, expires, token };
     },
 
-    async useVerificationToken({ identifier, token }) {
+    async useVerificationToken({ identifier, token }: UseVerificationTokenData) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const vt = await queryOne<any>(
         `SELECT * FROM VerificationToken WHERE identifier = ? AND token = ?`,
         [identifier, token]
       );
       if (!vt) return null;
-      await execute(
-        `DELETE FROM VerificationToken WHERE identifier = ? AND token = ?`,
-        [identifier, token]
-      );
+      await execute(`DELETE FROM VerificationToken WHERE identifier = ? AND token = ?`, [identifier, token]);
       return { ...vt, expires: new Date(vt.expires) };
     },
   };
