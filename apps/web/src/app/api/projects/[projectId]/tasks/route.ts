@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const conditions: string[] = ["t.projectId = ?"];
   const vals: unknown[] = [projectId];
 
-  if (status) { conditions.push("t.status = ?"); vals.push(status); }
+  if (status) { conditions.push("t.columnId = ?"); vals.push(status); }
   if (priority) { conditions.push("t.priority = ?"); vals.push(priority); }
   if (assigneeId) { conditions.push("t.assigneeId = ?"); vals.push(assigneeId); }
 
@@ -39,14 +39,14 @@ export async function GET(req: NextRequest, { params }: Params) {
      LEFT JOIN User u1 ON t.assigneeId = u1.id
      LEFT JOIN User u2 ON t.creatorId = u2.id
      WHERE ${conditions.join(" AND ")}
-     ORDER BY t.status ASC, t.taskNumber DESC`,
+     ORDER BY t.taskNumber DESC`,
     vals
   );
 
   return NextResponse.json(
     rows.map((row) => ({
       id: row.id, projectId: row.projectId, title: row.title, description: row.description,
-      status: row.status, priority: row.priority, taskNumber: row.taskNumber,
+      columnId: row.columnId, priority: row.priority, taskNumber: row.taskNumber,
       assigneeId: row.assigneeId, creatorId: row.creatorId,
       guestName: row.guestName, guestEmail: row.guestEmail,
       screenshotUrl: row.screenshotUrl, domSelector: row.domSelector, domHtml: row.domHtml,
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const body = await req.json();
-  const { title, description, priority, assigneeId } = body;
+  const { title, description, priority, assigneeId, columnId } = body;
 
   if (!title?.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -93,11 +93,21 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
     const num = (maxRow?.maxNum ?? 0) + 1;
 
+    let targetColumnId = columnId || null;
+    if (!targetColumnId) {
+      const firstCol = await connQueryOne<{ id: string }>(
+        conn,
+        `SELECT id FROM BoardColumn WHERE projectId = ? ORDER BY position ASC LIMIT 1`,
+        [projectId]
+      );
+      targetColumnId = firstCol?.id || null;
+    }
+
     await connExecute(
       conn,
-      `INSERT INTO Task (id, projectId, title, description, status, priority, taskNumber, assigneeId, creatorId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, 'BACKLOG', ?, ?, ?, ?, NOW(), NOW())`,
-      [taskId, projectId, title.trim(), description?.trim() || null, priority || "MEDIUM", num, assigneeId || null, userId]
+      `INSERT INTO Task (id, projectId, title, description, status, priority, taskNumber, assigneeId, creatorId, columnId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, 'BACKLOG', ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [taskId, projectId, title.trim(), description?.trim() || null, priority || "MEDIUM", num, assigneeId || null, userId, targetColumnId]
     );
 
     await connExecute(

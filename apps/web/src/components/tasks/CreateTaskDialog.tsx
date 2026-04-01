@@ -9,18 +9,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 
-const STATUS_OPTIONS = ["BACKLOG", "TODO", "DOING", "DONE", "CLOSED"];
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
 interface CreateTaskDialogProps {
   projectId: string;
-  defaultStatus: string;
+  defaultColumnId: string | null;
   members: { id: string; name: string | null }[];
   onClose: () => void;
   onCreated: () => void;
 }
 
-export function CreateTaskDialog({ projectId, defaultStatus, members, onClose, onCreated }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ projectId, defaultColumnId, members, onClose, onCreated }: CreateTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
@@ -40,6 +39,7 @@ export function CreateTaskDialog({ projectId, defaultStatus, members, onClose, o
           description,
           priority,
           assigneeId: assigneeId === "unassigned" ? null : assigneeId,
+          columnId: defaultColumnId,
         }),
       });
       if (!res.ok) throw new Error();

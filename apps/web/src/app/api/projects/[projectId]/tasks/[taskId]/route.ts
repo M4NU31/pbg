@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const body = await req.json();
-  const { title, description, status, priority, assigneeId } = body;
+  const { title, description, status, columnId, priority, assigneeId } = body;
 
   const existing = await queryOne<Record<string, unknown>>(
     `SELECT * FROM Task WHERE id = ? AND projectId = ?`,
@@ -91,6 +91,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (title !== undefined) { setParts.push("title = ?"); vals.push(title.trim()); }
   if (description !== undefined) { setParts.push("description = ?"); vals.push(description?.trim() || null); }
   if (status !== undefined) { setParts.push("status = ?"); vals.push(status); }
+  if (columnId !== undefined) { setParts.push("columnId = ?"); vals.push(columnId || null); }
   if (priority !== undefined) { setParts.push("priority = ?"); vals.push(priority); }
   if (assigneeId !== undefined) { setParts.push("assigneeId = ?"); vals.push(assigneeId || null); }
   setParts.push("updatedAt = NOW()");
@@ -104,7 +105,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     const activities: { type: string; fromValue: string | null; toValue: string | null }[] = [];
 
-    if (status && status !== existing.status) {
+    if (columnId !== undefined && columnId !== existing.columnId) {
+      activities.push({ type: "STATUS_CHANGED", fromValue: existing.columnId as string | null, toValue: columnId || null });
+    } else if (status && status !== existing.status) {
       activities.push({ type: "STATUS_CHANGED", fromValue: existing.status as string, toValue: status });
     }
     if (priority && priority !== existing.priority) {

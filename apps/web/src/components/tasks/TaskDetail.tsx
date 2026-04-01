@@ -15,7 +15,6 @@ import Image from "next/image";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
-const STATUS_OPTIONS = ["BACKLOG", "TODO", "DOING", "DONE", "CLOSED"];
 
 interface TaskDetailProps {
   taskId: string;
@@ -30,6 +29,10 @@ interface TaskDetailProps {
 export function TaskDetail({ taskId, projectId, members, currentUserId, onClose, onUpdate }: TaskDetailProps) {
   const { data: task, mutate } = useSWR(
     `/api/projects/${projectId}/tasks/${taskId}`,
+    fetcher
+  );
+  const { data: columns = [] } = useSWR<{ id: string; name: string }[]>(
+    `/api/projects/${projectId}/columns`,
     fetcher
   );
 
@@ -125,17 +128,17 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
             {/* Title */}
             <h2 className="text-lg font-semibold leading-snug">{task.title}</h2>
 
-            {/* Status + Priority row */}
+            {/* Column + Priority row */}
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <label className="text-xs text-muted-foreground mb-1 block">Status</label>
-                <Select value={task.status} onValueChange={(v) => updateTask({ status: v })}>
+                <label className="text-xs text-muted-foreground mb-1 block">Column</label>
+                <Select value={task.columnId ?? ""} onValueChange={(v) => updateTask({ columnId: v })}>
                   <SelectTrigger className="h-8 text-sm">
-                    <SelectValue />
+                    <SelectValue placeholder="No column" />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS_OPTIONS.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    {columns.map((col) => (
+                      <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

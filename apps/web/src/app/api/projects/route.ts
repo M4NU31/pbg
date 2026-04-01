@@ -60,6 +60,8 @@ export async function POST(req: NextRequest) {
   const embedKey = generateEmbedKey();
   const userId = session!.user.id;
 
+  const defaultColumns = ["Backlog", "Dev", "Prod", "Review", "Done"];
+
   await withTransaction(async (conn) => {
     await connExecute(
       conn,
@@ -72,6 +74,13 @@ export async function POST(req: NextRequest) {
       `INSERT INTO ProjectMember (id, projectId, userId, role, joinedAt) VALUES (?, ?, ?, 'OWNER', NOW())`,
       [memberId, projectId, userId]
     );
+    for (let i = 0; i < defaultColumns.length; i++) {
+      await connExecute(
+        conn,
+        `INSERT INTO BoardColumn (id, projectId, name, position, createdAt) VALUES (?, ?, ?, ?, NOW())`,
+        [randomUUID(), projectId, defaultColumns[i], i]
+      );
+    }
   });
 
   const project = await queryOne<Record<string, unknown>>(

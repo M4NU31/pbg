@@ -73,18 +73,25 @@ export async function POST(req: NextRequest) {
     );
     const num = (maxRow?.maxNum ?? 0) + 1;
 
+    const firstCol = await connQueryOne<{ id: string }>(
+      conn,
+      `SELECT id FROM BoardColumn WHERE projectId = ? ORDER BY position ASC LIMIT 1`,
+      [projectId]
+    );
+    const targetColumnId = firstCol?.id || null;
+
     await connExecute(
       conn,
       `INSERT INTO Task (
-        id, projectId, title, description, taskNumber, status, priority,
+        id, projectId, title, description, taskNumber, status, priority, columnId,
         guestName, guestEmail, screenshotUrl, domSelector, domHtml, pageUrl,
         browserName, browserVersion, osName, osVersion, deviceType,
         screenWidth, screenHeight, viewportWidth, viewportHeight, userAgent,
         createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', 'MEDIUM', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', 'MEDIUM', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         taskId, projectId, title.slice(0, 255), description?.slice(0, 5000) || null, num,
-        guestName || null, guestEmail || null,
+        targetColumnId, guestName || null, guestEmail || null,
         screenshotUrl || null, domSelector.slice(0, 500), domHtml?.slice(0, 5000) || null,
         pageUrl.slice(0, 2000),
         browserMeta?.browserName || null, browserMeta?.browserVersion || null,
