@@ -13,7 +13,10 @@ export default async function AdminUsersPage() {
   if (systemRole !== "RANK1") notFound();
 
   const users = await query<Record<string, unknown>>(
-    `SELECT id, name, email, image, systemRole, createdAt FROM User ORDER BY createdAt DESC`
+    `SELECT u.id, u.name, u.email, u.image, u.systemRole, u.createdAt,
+     (SELECT GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR ', ')
+      FROM Project p WHERE p.ownerId = u.id AND p.archivedAt IS NULL) as ownedProjects
+     FROM User u ORDER BY u.createdAt DESC`
   );
 
   return (
@@ -23,7 +26,14 @@ export default async function AdminUsersPage() {
         <p className="text-muted-foreground">Change user roles and access levels.</p>
       </div>
       <UserRoleManager
-        users={users as { id: string; name: string | null; email: string; image: string | null; systemRole: string }[]}
+        users={users as {
+          id: string;
+          name: string | null;
+          email: string;
+          image: string | null;
+          systemRole: string;
+          ownedProjects: string | null;
+        }[]}
         currentUserId={session.user.id}
       />
     </div>
