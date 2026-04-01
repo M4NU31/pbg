@@ -44,7 +44,8 @@ export async function execute(
   sql: string,
   params?: unknown[]
 ): Promise<mysql.ResultSetHeader> {
-  const [result] = await getPool().execute(sql, params ?? []);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [result] = await getPool().execute(sql, (params ?? []) as any);
   return result as mysql.ResultSetHeader;
 }
 
@@ -88,7 +89,8 @@ export async function connExecute(
   sql: string,
   params?: unknown[]
 ): Promise<mysql.ResultSetHeader> {
-  const [result] = await conn.execute(sql, params ?? []);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [result] = await conn.execute(sql, (params ?? []) as any);
   return result as mysql.ResultSetHeader;
 }
 
