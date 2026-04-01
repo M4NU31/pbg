@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, withTransaction, connExecute, parseJson } from "@/lib/db";
-import { requireAuth } from "@/lib/auth-helpers";
+import { requireAuth, getSystemRole } from "@/lib/auth-helpers";
 import { generateEmbedKey } from "@/lib/utils";
 import { randomUUID } from "crypto";
 
@@ -42,6 +42,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { error, session } = await requireAuth();
   if (error) return error;
+
+  const systemRole = await getSystemRole(session!.user.id, session!.user.email);
+  if (systemRole === "RANK3") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const body = await req.json();
   const { name, description } = body;

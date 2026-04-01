@@ -1,0 +1,91 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const ROLE_LABELS: Record<string, string> = {
+  RANK1: "Rank 1 — Admin",
+  RANK2: "Rank 2 — Project Manager",
+  RANK3: "Rank 3 — Member",
+};
+
+const ROLE_BADGE: Record<string, string> = {
+  RANK1: "bg-primary/20 text-primary",
+  RANK2: "bg-blue-500/20 text-blue-400",
+  RANK3: "bg-zinc-500/20 text-zinc-400",
+};
+
+interface User {
+  id: string;
+  name: string | null;
+  email: string;
+  image: string | null;
+  systemRole: string;
+}
+
+export function UserRoleManager({ users, currentUserId }: { users: User[]; currentUserId: string }) {
+  const router = useRouter();
+  const [saving, setSaving] = useState<string | null>(null);
+
+  async function handleRoleChange(userId: string, newRole: string) {
+    setSaving(userId);
+    await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, newRole }),
+    });
+    setSaving(null);
+    router.refresh();
+  }
+
+  return (
+    <div className="space-y-3">
+      {users.map((user) => {
+        const initials = user.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
+        const isSelf = user.id === currentUserId;
+
+        return (
+          <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg border bg-card">
+            <Avatar className="h-9 w-9 shrink-0">
+              <AvatarImage src={user.image ?? undefined} />
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{user.name ?? "—"}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+            {isSelf ? (
+              <Badge className={ROLE_BADGE[user.systemRole] ?? ""}>
+                {ROLE_LABELS[user.systemRole] ?? user.systemRole}
+              </Badge>
+            ) : (
+              <Select
+                defaultValue={user.systemRole}
+                onValueChange={(val) => handleRoleChange(user.id, val)}
+                disabled={saving === user.id}
+              >
+                <SelectTrigger className="w-52 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RANK1">Rank 1 — Admin</SelectItem>
+                  <SelectItem value="RANK2">Rank 2 — Project Manager</SelectItem>
+                  <SelectItem value="RANK3">Rank 3 — Member</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}

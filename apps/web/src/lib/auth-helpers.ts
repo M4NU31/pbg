@@ -3,6 +3,24 @@ import { authOptions } from "@/lib/auth";
 import { queryOne, parseJson } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+export type SystemRole = "RANK1" | "RANK2" | "RANK3";
+
+// Bootstrap: if DB column doesn't exist yet, fall back to email check
+const BOOTSTRAP_ADMIN_EMAIL = "manuel@punchteam.com";
+
+export async function getSystemRole(userId: string, email?: string | null): Promise<SystemRole> {
+  if (email === BOOTSTRAP_ADMIN_EMAIL) return "RANK1";
+  try {
+    const row = await queryOne<{ systemRole: string }>(
+      `SELECT systemRole FROM User WHERE id = ?`,
+      [userId]
+    );
+    return (row?.systemRole as SystemRole) ?? "RANK3";
+  } catch {
+    return "RANK3";
+  }
+}
+
 export async function requireAuth() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -29,14 +47,14 @@ type MemberWithProject = {
   };
 };
 
-const ADMIN_EMAIL = "manuel@punchteam.com";
-
 export async function requireProjectAccess(
   userId: string,
   projectId: string
 ): Promise<{ error: null; member: MemberWithProject } | { error: NextResponse; member: null }> {
   const session = await getServerSession(authOptions);
-  if (session?.user?.email === ADMIN_EMAIL) {
+  const systemRole = await getSystemRole(userId, session?.user?.email);
+
+  if (systemRole === "RANK1") {
     const row = await queryOne<Record<string, unknown>>(
       `SELECT p.id as p_id, p.name as p_name, p.description as p_description,
        p.embedKey as p_embedKey, p.allowedDomains as p_allowedDomains,
@@ -53,7 +71,7 @@ export async function requireProjectAccess(
         id: "admin",
         projectId,
         userId,
-        role: "ADMIN",
+        role: "RANK1",
         joinedAt: new Date(),
         project: {
           id: row.p_id as string,

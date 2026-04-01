@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { LayoutDashboard, LogOut, Moon, Sun } from "lucide-react";
+import { LayoutDashboard, LogOut, Moon, Sun, Archive, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { SystemRole } from "@/lib/auth-helpers";
 
 interface SidebarProps {
   user: {
@@ -15,14 +16,17 @@ interface SidebarProps {
     email?: string | null;
     image?: string | null;
   };
+  systemRole: SystemRole;
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, systemRole }: SidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
   const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/archived", icon: Archive, label: "Archived Projects" },
+    ...(systemRole === "RANK1" ? [{ href: "/admin/users", icon: Users, label: "Manage Users" }] : []),
   ];
 
   const initials = user.name
@@ -46,7 +50,7 @@ export function Sidebar({ user }: SidebarProps) {
             href={href}
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-              pathname.startsWith(href)
+              pathname === href || pathname.startsWith(href + "/")
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
@@ -57,7 +61,7 @@ export function Sidebar({ user }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="p-4 border-t space-y-2">
+      <div className="p-4 border-t">
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="h-8 w-8">
             <AvatarImage src={user.image ?? undefined} />

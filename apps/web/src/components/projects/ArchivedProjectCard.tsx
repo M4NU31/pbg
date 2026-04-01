@@ -1,40 +1,38 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, Bug, Archive, Trash2 } from "lucide-react";
+import { Bug, ArchiveRestore, Trash2 } from "lucide-react";
 import type { SystemRole } from "@/lib/auth-helpers";
 
-interface ProjectCardProps {
+interface ArchivedProjectCardProps {
   project: {
     id: string;
     name: string;
     description: string | null;
     ownerId: string;
-    _count: { tasks: number; members: number };
-    owner: { name: string | null; image: string | null };
-    role: string;
+    archivedAt: Date;
+    taskCount: number;
+    ownerName: string;
   };
   systemRole: SystemRole;
   currentUserId: string;
 }
 
-export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardProps) {
+export function ArchivedProjectCard({ project, systemRole, currentUserId }: ArchivedProjectCardProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const isRank1 = systemRole === "RANK1";
   const isOwner = project.ownerId === currentUserId;
-  const canArchive = isRank1 || (systemRole === "RANK2" && isOwner);
+  const canRestore = isRank1 || (systemRole === "RANK2" && isOwner);
   const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
 
-  async function handleArchive() {
-    if (!confirm(`Archive "${project.name}"? It will be hidden from the dashboard.`)) return;
+  async function handleRestore() {
     setLoading(true);
-    await fetch(`/api/projects/${project.id}/archive`, { method: "POST" });
+    await fetch(`/api/projects/${project.id}/archive`, { method: "DELETE" });
     router.refresh();
   }
 
@@ -46,26 +44,21 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   }
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="opacity-80 hover:opacity-100 transition-opacity">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base">{project.name}</CardTitle>
           <div className="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-              <Link href={`/projects/${project.id}/settings`}>
-                <Settings className="h-4 w-4" />
-              </Link>
-            </Button>
-            {canArchive && (
+            {canRestore && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={handleArchive}
+                onClick={handleRestore}
                 disabled={loading}
-                title="Archive project"
+                title="Restore project"
               >
-                <Archive className="h-4 w-4" />
+                <ArchiveRestore className="h-4 w-4" />
               </Button>
             )}
             {canDelete && (
@@ -75,7 +68,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
                 onClick={handleDelete}
                 disabled={loading}
-                title="Delete project"
+                title="Delete permanently"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -87,19 +80,13 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
         )}
       </CardHeader>
       <CardContent>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
             <Bug className="h-3.5 w-3.5" />
-            {project._count.tasks} tasks
+            {project.taskCount} tasks
           </span>
-          <span className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            {project._count.members} members
-          </span>
+          <span className="text-xs">Owner: {project.ownerName}</span>
         </div>
-        <Button asChild className="w-full" size="sm">
-          <Link href={`/projects/${project.id}`}>Open Board</Link>
-        </Button>
       </CardContent>
     </Card>
   );
