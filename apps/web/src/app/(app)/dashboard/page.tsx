@@ -10,18 +10,30 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
 
+  const ADMIN_EMAIL = "manuel@punchteam.com";
+  const isAdmin = session.user.email === ADMIN_EMAIL;
+
   const rows = await query<Record<string, unknown>>(
-    `SELECT pm.role,
-     p.id, p.name, p.description, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
-     (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
-     (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
-     u.name as ownerName, u.image as ownerImage
-     FROM ProjectMember pm
-     JOIN Project p ON pm.projectId = p.id
-     JOIN User u ON p.ownerId = u.id
-     WHERE pm.userId = ?
-     ORDER BY p.updatedAt DESC`,
-    [session.user.id]
+    isAdmin
+      ? `SELECT 'ADMIN' as role,
+         p.id, p.name, p.description, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+         (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
+         (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
+         u.name as ownerName, u.image as ownerImage
+         FROM Project p
+         JOIN User u ON p.ownerId = u.id
+         ORDER BY p.updatedAt DESC`
+      : `SELECT pm.role,
+         p.id, p.name, p.description, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+         (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
+         (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
+         u.name as ownerName, u.image as ownerImage
+         FROM ProjectMember pm
+         JOIN Project p ON pm.projectId = p.id
+         JOIN User u ON p.ownerId = u.id
+         WHERE pm.userId = ?
+         ORDER BY p.updatedAt DESC`,
+    isAdmin ? [] : [session.user.id]
   );
 
   const projects = rows.map((row) => ({
