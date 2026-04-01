@@ -6,8 +6,8 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PunchBug - Visual Bug Tracking",
-  description: "The easiest way to collect website feedback and track bugs.",
+  title: "Punch QA Tool",
+  description: "Sign in to access internal tools.",
 };
 
 export default function RootLayout({

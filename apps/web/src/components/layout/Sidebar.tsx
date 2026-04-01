@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { Bug, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { LayoutDashboard, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,8 +33,8 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <aside className="flex flex-col w-60 border-r bg-card h-full">
       <div className="flex items-center gap-2 px-6 py-5 border-b">
-        <Bug className="h-6 w-6 text-primary" />
-        <span className="font-bold text-lg">PunchBug</span>
+        <img src="/logo.svg" alt="" className="h-6 w-6" />
+        <span className="font-bold text-lg">Punch QA Tool</span>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
