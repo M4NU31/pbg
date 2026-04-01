@@ -14,39 +14,33 @@ const handle = app.getRequestHandler();
 const port = parseInt(process.env.PORT || "3000", 10);
 
 function testDbConnection() {
+  const net = require("net");
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
     console.error("> DB check FAILED: DATABASE_URL env var is not set");
     return;
   }
+  let parsed;
   try {
-    const url = new URL(dbUrl);
-    console.log("> DB check: host=" + url.hostname + " port=" + (url.port || "3306") + " db=" + url.pathname.slice(1) + " user=" + url.username);
+    parsed = new URL(dbUrl);
+    console.log("> DB check: host=" + parsed.hostname + " port=" + (parsed.port || "3306") + " db=" + parsed.pathname.slice(1) + " user=" + parsed.username);
   } catch (e) {
     console.error("> DB check FAILED: DATABASE_URL is not a valid URL:", e.message);
     return;
   }
 
-  let mysql2;
-  try {
-    mysql2 = require(path.join(ROOT, "node_modules/mysql2"));
-  } catch (e) {
-    try {
-      mysql2 = require(path.join(WEB_DIR, "node_modules/mysql2"));
-    } catch (e2) {
-      console.log("> DB check skipped: mysql2 not available");
-      return;
-    }
-  }
-
-  const conn = mysql2.createConnection(dbUrl);
-  conn.connect((err) => {
-    if (err) {
-      console.error("> DB connection FAILED:", err.message);
-    } else {
-      console.log("> DB connection OK");
-      conn.end();
-    }
+  const host = parsed.hostname;
+  const port = parseInt(parsed.port || "3306", 10);
+  const client = net.createConnection({ host, port }, () => {
+    console.log("> DB TCP check OK: " + host + ":" + port + " is reachable");
+    client.destroy();
+  });
+  client.on("error", (err) => {
+    console.error("> DB TCP check FAILED: cannot reach " + host + ":" + port + " — " + err.message);
+  });
+  client.setTimeout(5000, () => {
+    console.error("> DB TCP check FAILED: connection to " + host + ":" + port + " timed out");
+    client.destroy();
   });
 }
 
