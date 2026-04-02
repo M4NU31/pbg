@@ -21,9 +21,16 @@ export async function GET(req: NextRequest, { params }: Params) {
   const status = searchParams.get("status");
   const priority = searchParams.get("priority");
   const assigneeId = searchParams.get("assigneeId");
+  const archived = searchParams.get("archived") === "true";
 
   const conditions: string[] = ["t.projectId = ?"];
   const vals: unknown[] = [projectId];
+
+  if (archived) {
+    conditions.push("t.archivedAt IS NOT NULL");
+  } else {
+    conditions.push("t.archivedAt IS NULL");
+  }
 
   if (status) { conditions.push("t.columnId = ?"); vals.push(status); }
   if (priority) { conditions.push("t.priority = ?"); vals.push(priority); }

@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const body = await req.json();
-  const { title, description, status, columnId, priority, assigneeId } = body;
+  const { title, description, status, columnId, priority, assigneeId, archive } = body;
 
   const existing = await queryOne<Record<string, unknown>>(
     `SELECT * FROM Task WHERE id = ? AND projectId = ?`,
@@ -94,6 +94,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (columnId !== undefined) { setParts.push("columnId = ?"); vals.push(columnId || null); }
   if (priority !== undefined) { setParts.push("priority = ?"); vals.push(priority); }
   if (assigneeId !== undefined) { setParts.push("assigneeId = ?"); vals.push(assigneeId || null); }
+  if (archive === true) { setParts.push("archivedAt = NOW()"); }
+  if (archive === false) { setParts.push("archivedAt = NULL"); }
   setParts.push("updatedAt = NOW()");
 
   const actorName = session!.user.name || session!.user.email || "Unknown";

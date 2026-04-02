@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/hooks/use-toast";
 import { formatRelativeTime } from "@/lib/utils";
-import { X, Monitor, Globe, Maximize2, Paperclip, ChevronDown } from "lucide-react";
+import { X, Monitor, Globe, Maximize2, Paperclip, Archive, Trash2, Link2, ArchiveRestore } from "lucide-react";
 import Image from "next/image";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -39,7 +40,54 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
   const [comment, setComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [screenshotExpanded, setScreenshotExpanded] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleArchive() {
+    setActionLoading(true);
+    try {
+      const isArchived = !!task?.archivedAt;
+      const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archive: !isArchived }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: isArchived ? "Task unarchived" : "Task archived" });
+      onUpdate();
+      onClose();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+      setConfirmArchive(false);
+    }
+  }
+
+  async function handleDelete() {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast({ title: "Task deleted" });
+      onUpdate();
+      onClose();
+    } catch {
+      toast({ title: "Delete failed", variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+      setConfirmDelete(false);
+    }
+  }
+
+  function copyLink() {
+    const url = `${window.location.origin}/projects/${projectId}?task=${taskId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast({ title: "Link copied to clipboard" });
+    });
+  }
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -118,9 +166,28 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <span className="text-sm font-mono text-muted-foreground">#{task.taskNumber}</span>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copy link">
+              <Link2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost" size="icon" className="h-8 w-8"
+              onClick={() => setConfirmArchive(true)}
+              title={task.archivedAt ? "Unarchive" : "Archive"}
+            >
+              {task.archivedAt ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+            </Button>
+            <Button
+              variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -339,6 +406,31 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmArchive}
+        onOpenChange={setConfirmArchive}
+        title={task.archivedAt ? "Unarchive task?" : "Archive task?"}
+        description={task.archivedAt
+          ? "This will move the task back to the active board."
+          : "This will hide the task from the board. You can unarchive it later."}
+        confirmLabel={task.archivedAt ? "Unarchive" : "Archive"}
+        variant="warning"
+        loading={actionLoading}
+        onConfirm={handleArchive}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete task?"
+        description="This will permanently delete the task and all its comments and attachments. This cannot be undone."
+        detail={`Task #${task.taskNumber}: ${task.title}`}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={actionLoading}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

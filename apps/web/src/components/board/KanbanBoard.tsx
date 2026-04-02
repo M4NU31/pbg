@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import useSWR from "swr";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskDetail } from "@/components/tasks/TaskDetail";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
+import { ArchivedTasksPanel } from "@/components/tasks/ArchivedTasksPanel";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, Archive } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -37,6 +39,9 @@ interface KanbanBoardProps {
 export function KanbanBoard({ projectId, members, currentUserId, currentUserRole }: KanbanBoardProps) {
   const canManage = currentUserRole === "OWNER" || currentUserRole === "ADMIN" || currentUserRole === "RANK1";
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const { data: columns = [], mutate: mutateColumns } = useSWR<BoardColumn[]>(
     `/api/projects/${projectId}/columns`,
     fetcher
@@ -48,11 +53,31 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
     { refreshInterval: 30000 }
   );
 
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const { data: archivedTasks = [] } = useSWR<any[]>(
+    `/api/projects/${projectId}/tasks?archived=true`,
+    fetcher
+  );
+
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(searchParams.get("task"));
   const [createInColumnId, setCreateInColumnId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
   const [addingColLoading, setAddingColLoading] = useState(false);
+
+  function openTask(taskId: string) {
+    setSelectedTaskId(taskId);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("task", taskId);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
+
+  function closeTask() {
+    setSelectedTaskId(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("task");
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
 
   const tasksByColumn = columns.reduce((acc, col) => {
     acc[col.id] = tasks.filter((t) => t.columnId === col.id);
@@ -162,7 +187,20 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
   return (
     <>
       <div className="flex items-center justify-between px-8 py-3 border-b bg-muted/30">
-        <div className="text-sm text-muted-foreground">{tasks.length} tasks total</div>
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">{tasks.length} tasks</div>
+          {archivedTasks.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground gap-1.5"
+              onClick={() => setShowArchived(true)}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              {archivedTasks.length} archived
+            </Button>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => setCreateInColumnId(columns[0]?.id ?? null)}>
             <Plus className="h-4 w-4 mr-1" />
@@ -199,7 +237,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
                           tasks={tasksByColumn[col.id] || []}
                           dragHandleProps={canManage ? colProvided.dragHandleProps : null}
                           canManage={canManage}
-                          onTaskClick={setSelectedTaskId}
+                          onTaskClick={openTask}
                           onAddTask={() => setCreateInColumnId(col.id)}
                           onRename={(name) => handleRenameColumn(col.id, name)}
                           onDelete={() => handleDeleteColumn(col.id)}
@@ -258,8 +296,8 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
           members={members}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
-          onClose={() => setSelectedTaskId(null)}
-          onUpdate={() => mutateTasks()}
+          onClose={closeTask}
+          onUpdate={() => { mutateTasks(); }}
         />
       )}
 
@@ -270,6 +308,15 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
           members={members}
           onClose={() => setCreateInColumnId(null)}
           onCreated={() => { mutateTasks(); setCreateInColumnId(null); }}
+        />
+      )}
+
+      {showArchived && (
+        <ArchivedTasksPanel
+          projectId={projectId}
+          onClose={() => setShowArchived(false)}
+          onRestored={() => mutateTasks()}
+          onTaskClick={openTask}
         />
       )}
     </>
