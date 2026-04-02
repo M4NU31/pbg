@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/hooks/use-toast";
 import { formatRelativeTime } from "@/lib/utils";
-import { X, Monitor, Globe, Maximize2, Paperclip, Archive, Trash2, Link2, ArchiveRestore } from "lucide-react";
+import { X, Monitor, Globe, Maximize2, Paperclip, Archive, Trash2, Link2, ArchiveRestore, Pencil, Check } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -130,7 +130,41 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
 
   // ── misc state ───────────────────────────────────────────────────
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentBody, setEditingCommentBody] = useState("");
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [screenshotExpanded, setScreenshotExpanded] = useState(false);
+
+  async function saveCommentEdit(commentId: string) {
+    if (!editingCommentBody.trim()) return;
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}/comments/${commentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: editingCommentBody }),
+      });
+      if (!res.ok) throw new Error();
+      setEditingCommentId(null);
+      mutate();
+    } catch {
+      toast({ title: "Failed to update comment", variant: "destructive" });
+    }
+  }
+
+  async function deleteComment(commentId: string) {
+    setDeletingCommentId(commentId);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}/comments/${commentId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+      mutate();
+    } catch {
+      toast({ title: "Failed to delete comment", variant: "destructive" });
+    } finally {
+      setDeletingCommentId(null);
+    }
+  }
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -435,18 +469,69 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
             <div>
               <p className="text-xs text-muted-foreground mb-3">Comments ({task.comments?.length ?? 0})</p>
               <div className="space-y-4">
-                {task.comments?.map((c: any) => (
-                  <div key={c.id} className="flex gap-3">
-                    <UserAvatar name={c.author?.name ?? c.guestName} email={c.author?.email} image={c.author?.image} className="h-7 w-7 shrink-0" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium">{c.author?.name || c.guestName || "Guest"}</span>
-                        <span className="text-xs text-muted-foreground">{formatRelativeTime(c.createdAt)}</span>
+                {task.comments?.map((c: any) => {
+                  const isOwn = c.author?.id === currentUserId;
+                  const isEditing = editingCommentId === c.id;
+                  return (
+                    <div key={c.id} className="flex gap-3 group">
+                      <UserAvatar name={c.author?.name ?? c.guestName} email={c.author?.email} image={c.author?.image} className="h-7 w-7 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium">{c.author?.name || c.guestName || "Guest"}</span>
+                          <span className="text-xs text-muted-foreground">{formatRelativeTime(c.createdAt)}</span>
+                          {c.updatedAt !== c.createdAt && (
+                            <span className="text-xs text-muted-foreground italic">(edited)</span>
+                          )}
+                          {isOwn && !isEditing && (
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                              <Button
+                                variant="ghost" size="icon" className="h-5 w-5"
+                                onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(c.body); }}
+                                title="Edit comment"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive"
+                                onClick={() => deleteComment(c.id)}
+                                disabled={deletingCommentId === c.id}
+                                title="Delete comment"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {isEditing ? (
+                          <div className="space-y-1.5">
+                            <Textarea
+                              value={editingCommentBody}
+                              onChange={(e) => setEditingCommentBody(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") setEditingCommentId(null);
+                                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveCommentEdit(c.id);
+                              }}
+                              rows={3}
+                              className="resize-none text-sm"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" className="h-7 text-xs" onClick={() => saveCommentEdit(c.id)} disabled={!editingCommentBody.trim()}>
+                                <Check className="h-3 w-3 mr-1" />Save
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingCommentId(null)}>
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <CommentBody body={c.body} members={members} />
+                        )}
                       </div>
-                      <CommentBody body={c.body} members={members} />
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Comment form with @mention */}
