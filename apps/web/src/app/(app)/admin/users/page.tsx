@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSystemRole } from "@/lib/auth-helpers";
 import { query } from "@/lib/db";
+import { gravatarUrl } from "@/lib/gravatar";
 import { notFound } from "next/navigation";
 import { UserRoleManager } from "@/components/admin/UserRoleManager";
 
@@ -26,14 +27,10 @@ export default async function AdminUsersPage() {
         <p className="text-muted-foreground">Change user roles and access levels.</p>
       </div>
       <UserRoleManager
-        users={users as {
-          id: string;
-          name: string | null;
-          email: string;
-          image: string | null;
-          systemRole: string;
-          ownedProjects: string | null;
-        }[]}
+        users={(users as any[]).map((u) => ({
+          ...u,
+          image: (u.image as string | null) ?? gravatarUrl(u.email as string),
+        }))}
         currentUserId={session.user.id}
       />
     </div>

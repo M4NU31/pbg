@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -16,9 +17,9 @@ import {
 } from "@/components/ui/select";
 
 const ROLE_LABELS: Record<string, string> = {
-  RANK1: "Rank 1 — Admin",
-  RANK2: "Rank 2 — Project Manager",
-  RANK3: "Rank 3 — Member",
+  RANK1: "Admin",
+  RANK2: "Project Manager",
+  RANK3: "Member",
 };
 
 const ROLE_BADGE: Record<string, string> = {
@@ -41,6 +42,17 @@ export function UserRoleManager({ users, currentUserId }: { users: User[]; curre
   const [saving, setSaving] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.name?.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q)
+    );
+  }, [users, search]);
 
   async function handleRoleChange(userId: string, newRole: string) {
     setSaving(userId);
@@ -68,17 +80,33 @@ export function UserRoleManager({ users, currentUserId }: { users: User[]; curre
 
   return (
     <>
+      {/* Search */}
+      <div className="relative mb-5">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Search by name or email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* User list */}
       <div className="space-y-3">
-        {users.map((user) => {
+        {filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-8">No users found</p>
+        )}
+
+        {filtered.map((user) => {
           const isSelf = user.id === currentUserId;
           const busy = saving === user.id;
 
           return (
             <div key={user.id} className="flex items-center gap-4 p-4 rounded-lg border bg-card">
-              <UserAvatar name={user.name} email={user.email} image={user.image} className="h-9 w-9" />
+              <UserAvatar name={user.name} email={user.email} image={user.image} className="h-10 w-10" />
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user.name ?? "—"}</p>
+                <p className="text-sm font-semibold truncate">{user.name ?? "—"}</p>
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 {user.ownedProjects && (
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -87,33 +115,36 @@ export function UserRoleManager({ users, currentUserId }: { users: User[]; curre
                 )}
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-3 shrink-0">
                 {isSelf ? (
                   <Badge className={ROLE_BADGE[user.systemRole] ?? ""}>
                     {ROLE_LABELS[user.systemRole] ?? user.systemRole}
                   </Badge>
                 ) : (
-                  <Select
-                    defaultValue={user.systemRole}
-                    onValueChange={(val) => handleRoleChange(user.id, val)}
-                    disabled={busy}
-                  >
-                    <SelectTrigger className="w-48 h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="RANK1">Rank 1 — Admin</SelectItem>
-                      <SelectItem value="RANK2">Rank 2 — Project Manager</SelectItem>
-                      <SelectItem value="RANK3">Rank 3 — Member</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">Role</span>
+                    <Select
+                      defaultValue={user.systemRole}
+                      onValueChange={(val) => handleRoleChange(user.id, val)}
+                      disabled={busy}
+                    >
+                      <SelectTrigger className="w-44 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="RANK1">Admin</SelectItem>
+                        <SelectItem value="RANK2">Project Manager</SelectItem>
+                        <SelectItem value="RANK3">Member</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
 
                 {!isSelf && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive mt-4"
                     onClick={() => setDeleteTarget(user)}
                     disabled={busy}
                     title="Remove user"
