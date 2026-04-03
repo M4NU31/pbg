@@ -9,12 +9,16 @@ export async function captureElement(el: HTMLElement): Promise<string> {
   // Allow scroll and repaint to settle
   await new Promise<void>((r) => setTimeout(r, 200));
 
-  // Read element bounds AFTER scroll settles — coordinates are viewport-relative
+  // Read viewport-relative coords after scroll settles
   const rect = el.getBoundingClientRect();
 
-  // Capture only the visible viewport (much more reliable than full-page)
+  // Render only the visible viewport.
+  // x/y tell html2canvas where in the document to start (= current scroll position).
+  // allowTaint:true is critical — without it, cross-origin images cause toDataURL()
+  // to throw a SecurityError that gets caught silently, producing a blank screenshot.
   const canvas = await html2canvas(document.body, {
     useCORS: true,
+    allowTaint: true,
     logging: false,
     scale: 1,
     ignoreElements,
@@ -22,22 +26,21 @@ export async function captureElement(el: HTMLElement): Promise<string> {
     y: window.scrollY,
     width: window.innerWidth,
     height: window.innerHeight,
-    windowWidth: window.innerWidth,
-    windowHeight: window.innerHeight,
   });
 
-  // rect coords are viewport-relative and map 1:1 to the canvas at scale:1
+  // At scale:1, viewport-relative rect coords map 1:1 to canvas coords
   const padding = 20;
   const x = Math.max(0, Math.round(rect.left) - padding);
   const y = Math.max(0, Math.round(rect.top) - padding);
   const w = Math.min(canvas.width - x, Math.round(rect.width) + padding * 2);
   const h = Math.min(canvas.height - y, Math.round(rect.height) + padding * 2);
 
+  if (w <= 0 || h <= 0) return "";
+
   const cropped = document.createElement("canvas");
-  cropped.width = Math.max(1, w);
-  cropped.height = Math.max(1, h);
+  cropped.width = w;
+  cropped.height = h;
   const ctx = cropped.getContext("2d")!;
   ctx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
-
   return cropped.toDataURL("image/png");
 }
