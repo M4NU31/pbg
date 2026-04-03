@@ -29,11 +29,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   // Remove the invitation
   await execute(`DELETE FROM ClientInvitation WHERE id = ?`, [invitationId]);
 
-  // Also remove their CLIENT membership if they have one
+  // Remove any membership for this email in the project (role may vary if
+  // the row pre-dates the CLIENT upsert fix, so don't filter by role)
   await execute(
     `DELETE pm FROM ProjectMember pm
      JOIN User u ON pm.userId = u.id
-     WHERE pm.projectId = ? AND pm.role = 'CLIENT' AND u.email = ?`,
+     WHERE pm.projectId = ? AND LOWER(u.email) = LOWER(?)`,
     [projectId, inv.email]
   );
 
