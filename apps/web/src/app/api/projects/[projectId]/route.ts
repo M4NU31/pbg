@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute, queryOne, parseJson } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
+import { deleteScreenshot } from "@/lib/screenshot";
 
 type Params = { params: Promise<{ projectId: string }> };
 
@@ -71,5 +72,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   await execute(`DELETE FROM Project WHERE id = ?`, [projectId]);
+  await deleteScreenshot(projectId);
   return new NextResponse(null, { status: 204 });
 }

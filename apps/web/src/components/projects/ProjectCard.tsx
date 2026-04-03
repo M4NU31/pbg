@@ -35,9 +35,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const canArchive = isRank1 || (systemRole === "RANK2" && isOwner);
   const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
 
-  const thumbUrl = project.siteUrl
-    ? `https://image.thum.io/get/width/600/crop/400/maxAge/720/noanimate/${project.siteUrl}`
-    : null;
+  const thumbUrl = `/screenshots/${project.id}.jpg`;
 
   async function handleArchive() {
     setLoading(true);
@@ -60,18 +58,16 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
       <Card className="hover:shadow-md transition-shadow overflow-hidden flex flex-col">
         {/* Site screenshot thumbnail */}
         <div className="relative w-full h-[200px] bg-muted overflow-hidden shrink-0">
-          {thumbUrl ? (
-            <img
-              src={thumbUrl}
-              alt={project.name}
-              className="w-full h-full object-cover object-top"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground/40">
-              <Bug className="h-10 w-10" />
-            </div>
-          )}
+          <img
+            src={thumbUrl}
+            alt={project.name}
+            className="w-full h-full object-cover object-top"
+            loading="lazy"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 -z-10">
+            <Bug className="h-10 w-10" />
+          </div>
           {/* Action buttons overlay */}
           <div className="absolute top-2 right-2 flex items-center gap-1">
             {project.siteUrl && (
