@@ -36,7 +36,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
 
   const thumbUrl = project.siteUrl
-    ? `https://image.thum.io/get/width/480/crop/280/${encodeURIComponent(project.siteUrl)}`
+    ? `https://image.thum.io/get/width/480/crop/280/${project.siteUrl}`
     : null;
 
   async function handleArchive() {

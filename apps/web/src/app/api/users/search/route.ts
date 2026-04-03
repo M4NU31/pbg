@@ -13,11 +13,13 @@ export async function GET(req: NextRequest) {
 
   if (q.length < 1) return NextResponse.json([]);
 
+  // Team-member search always restricts to @punchteam.com users
   const rows = await query<Record<string, unknown>>(
     projectId
       ? `SELECT u.id, u.name, u.email, u.image
          FROM User u
          WHERE (u.name LIKE ? OR u.email LIKE ?)
+           AND u.email LIKE '%@punchteam.com'
            AND u.id NOT IN (
              SELECT userId FROM ProjectMember WHERE projectId = ?
            )
@@ -26,6 +28,7 @@ export async function GET(req: NextRequest) {
       : `SELECT u.id, u.name, u.email, u.image
          FROM User u
          WHERE (u.name LIKE ? OR u.email LIKE ?)
+           AND u.email LIKE '%@punchteam.com'
          ORDER BY u.name ASC
          LIMIT 8`,
     projectId
