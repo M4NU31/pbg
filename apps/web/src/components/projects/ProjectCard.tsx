@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Settings, Users, Bug, Archive, Trash2, MessageSquare, ExternalLink } from "lucide-react";
+import { Settings, Users, Bug, Archive, Trash2, MessageSquare, ExternalLink, RefreshCw } from "lucide-react";
 import type { SystemRole } from "@/lib/auth-helpers";
 
 interface ProjectCardProps {
@@ -29,13 +29,41 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
+  // Use a cache-bust key so we can force the img to reload after retake
+  const [imgKey, setImgKey] = useState(0);
+  const captureTriggered = useRef(false);
 
   const isRank1 = systemRole === "RANK1";
   const isOwner = project.ownerId === currentUserId;
   const canArchive = isRank1 || (systemRole === "RANK2" && isOwner);
   const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
+  const canRetakeScreenshot = (isRank1 || isOwner) && !!project.siteUrl;
 
-  const thumbUrl = `/screenshots/${project.id}.jpg`;
+  const thumbSrc = `/screenshots/${project.id}.jpg?v=${imgKey}`;
+
+  function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
+    (e.currentTarget as HTMLImageElement).style.display = "none";
+    // Auto-trigger capture once per mount for projects with no screenshot yet
+    if (!captureTriggered.current && project.siteUrl) {
+      captureTriggered.current = true;
+      fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" }).catch(() => {});
+    }
+  }
+
+  async function handleRetakeScreenshot() {
+    if (!project.siteUrl) return;
+    setScreenshotLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" });
+      if (res.ok) {
+        // Bump key to force img reload and clear the display:none style
+        setImgKey((k) => k + 1);
+      }
+    } finally {
+      setScreenshotLoading(false);
+    }
+  }
 
   async function handleArchive() {
     setLoading(true);
@@ -57,19 +85,21 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
     <>
       <Card className="hover:shadow-md transition-shadow overflow-hidden flex flex-col">
         {/* Site screenshot thumbnail */}
-        <div className="relative w-full h-[200px] bg-muted overflow-hidden shrink-0">
+        <div className="relative w-full h-[200px] bg-muted overflow-hidden shrink-0 group">
           <img
-            src={thumbUrl}
+            key={imgKey}
+            src={thumbSrc}
             alt={project.name}
             className="w-full h-full object-cover object-top"
             loading="lazy"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            onError={handleImgError}
           />
+          {/* Fallback icon sits behind the image */}
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 -z-10">
             <Bug className="h-10 w-10" />
           </div>
-          {/* Action buttons overlay */}
-          <div className="absolute top-2 right-2 flex items-center gap-1">
+          {/* Action buttons overlay — visible on hover */}
+          <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {project.siteUrl && (
               <a
                 href={project.siteUrl}
@@ -81,6 +111,18 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
+            )}
+            {canRetakeScreenshot && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 bg-background/80 backdrop-blur-sm hover:bg-background text-muted-foreground hover:text-foreground"
+                onClick={handleRetakeScreenshot}
+                disabled={screenshotLoading}
+                title="Retake screenshot"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${screenshotLoading ? "animate-spin" : ""}`} />
+              </Button>
             )}
             {project.role !== "CLIENT" && (
               <Button variant="ghost" size="icon"
