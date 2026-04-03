@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/hooks/use-toast";
 import { formatRelativeTime } from "@/lib/utils";
 import { X, Monitor, Globe, Maximize2, Paperclip, Archive, Trash2, Link2, ArchiveRestore, Pencil, Check, ExternalLink } from "lucide-react";
+import { AssigneeSelect } from "@/components/tasks/AssigneeSelect";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -390,14 +391,13 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
                 </Select>
               </div>
               <div className="flex-1">
-                <label className="text-xs text-muted-foreground mb-1 block">Assignee</label>
-                <Select value={task.assigneeId ?? "unassigned"} onValueChange={(v) => updateTask({ assigneeId: v === "unassigned" ? null : v })}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name || m.id}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <label className="text-xs text-muted-foreground mb-1 block">Assignees</label>
+                <AssigneeSelect
+                  members={members}
+                  selectedIds={(task.assignees ?? (task.assigneeId ? [{ id: task.assigneeId }] : [])).map((a: any) => a.id)}
+                  onChange={(ids) => updateTask({ assigneeIds: ids })}
+                  size="sm"
+                />
               </div>
             </div>
 

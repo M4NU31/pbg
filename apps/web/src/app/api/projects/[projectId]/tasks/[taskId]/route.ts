@@ -7,31 +7,34 @@ import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
 
+function parseAssignees(raw: unknown): { id: string; name: string | null; email: string; image: string | null }[] {
+  if (!raw) return [];
+  try {
+    const arr = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(arr) ? arr.map((a: any) => ({ ...a, image: a.image ?? gravatarUrl(a.email) })) : [];
+  } catch { return []; }
+}
+
 export async function GET(_req: NextRequest, { params }: Params) {
   const { projectId, taskId } = await params;
   const { error, session } = await requireAuth();
   if (error) return error;
 
-  const { error: accessError } = await requireProjectAccess(
-    session!.user.id,
-    projectId
-  );
+  const { error: accessError } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
   const row = await queryOne<Record<string, unknown>>(
     `SELECT t.*,
-     u1.id as a_id, u1.name as a_name, u1.image as a_image, u1.email as a_email,
-     u2.id as c_id, u2.name as c_name
+     u2.id as c_id, u2.name as c_name,
+     (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'name', u.name, 'email', u.email, 'image', u.image))
+      FROM TaskAssignee ta JOIN User u ON ta.userId = u.id WHERE ta.taskId = t.id) as assigneesJson
      FROM Task t
-     LEFT JOIN User u1 ON t.assigneeId = u1.id
      LEFT JOIN User u2 ON t.creatorId = u2.id
      WHERE t.id = ? AND t.projectId = ?`,
     [taskId, projectId]
   );
 
-  if (!row) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  }
+  if (!row) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
   const [comments, attachments, activities] = await Promise.all([
     query<Record<string, unknown>>(
@@ -50,9 +53,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
     ),
   ]);
 
+  const assignees = parseAssignees(row.assigneesJson);
   return NextResponse.json({
     ...row,
-    assignee: row.a_id ? { id: row.a_id, name: row.a_name, email: row.a_email, image: (row.a_image as string | null) ?? gravatarUrl(row.a_email as string) } : null,
+    assignees,
+    assignee: assignees[0] ?? null,
     creator: row.c_id ? { id: row.c_id, name: row.c_name } : null,
     comments: comments.map((c) => ({
       id: c.id, taskId: c.taskId, authorId: c.authorId, guestName: c.guestName,
@@ -69,31 +74,29 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { error, session } = await requireAuth();
   if (error) return error;
 
-  const { error: accessError, member } = await requireProjectAccess(
-    session!.user.id,
-    projectId
-  );
+  const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
   const body = await req.json();
-  const { title, description, status, columnId, priority, assigneeId, archive } = body;
+  const { title, description, status, columnId, priority, assigneeIds, archive } = body;
+  // legacy single-id support (embed)
+  const hasAssigneeChange = assigneeIds !== undefined || body.assigneeId !== undefined;
+  const resolvedIds: string[] | null = assigneeIds !== undefined
+    ? assigneeIds
+    : body.assigneeId !== undefined
+      ? (body.assigneeId ? [body.assigneeId] : [])
+      : null;
 
   const existing = await queryOne<Record<string, unknown>>(
-    `SELECT * FROM Task WHERE id = ? AND projectId = ?`,
-    [taskId, projectId]
+    `SELECT * FROM Task WHERE id = ? AND projectId = ?`, [taskId, projectId]
   );
-  if (!existing) {
-    return NextResponse.json({ error: "Task not found" }, { status: 404 });
-  }
+  if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
-  // CLIENT role: moving a task (columnId only) is allowed on any task.
-  // Editing, archiving, or any other field change is restricted to own tasks.
   if (member!.role === "CLIENT") {
     const isMoveOnly = columnId !== undefined &&
       title === undefined && description === undefined &&
-      priority === undefined && assigneeId === undefined &&
+      priority === undefined && assigneeIds === undefined &&
       archive === undefined && status === undefined;
-
     if (!isMoveOnly) {
       const userId = session!.user.id;
       if (existing.creatorId !== userId && existing.assigneeId !== userId) {
@@ -105,14 +108,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const setParts: string[] = [];
   const vals: unknown[] = [];
 
-  if (title !== undefined) { setParts.push("title = ?"); vals.push(title.trim()); }
+  if (title !== undefined)       { setParts.push("title = ?");       vals.push(title.trim()); }
   if (description !== undefined) { setParts.push("description = ?"); vals.push(description?.trim() || null); }
-  if (status !== undefined) { setParts.push("status = ?"); vals.push(status); }
-  if (columnId !== undefined) { setParts.push("columnId = ?"); vals.push(columnId || null); }
-  if (priority !== undefined) { setParts.push("priority = ?"); vals.push(priority); }
-  if (assigneeId !== undefined) { setParts.push("assigneeId = ?"); vals.push(assigneeId || null); }
-  if (archive === true) { setParts.push("archivedAt = NOW()"); }
-  if (archive === false) { setParts.push("archivedAt = NULL"); }
+  if (status !== undefined)      { setParts.push("status = ?");      vals.push(status); }
+  if (columnId !== undefined)    { setParts.push("columnId = ?");    vals.push(columnId || null); }
+  if (priority !== undefined)    { setParts.push("priority = ?");    vals.push(priority); }
+  if (archive === true)  setParts.push("archivedAt = NOW()");
+  if (archive === false) setParts.push("archivedAt = NULL");
+  // keep legacy assigneeId in sync with first assignee
+  if (resolvedIds !== null) {
+    setParts.push("assigneeId = ?");
+    vals.push(resolvedIds[0] || null);
+  }
   setParts.push("updatedAt = NOW()");
 
   const actorName = session!.user.name || session!.user.email || "Unknown";
@@ -123,7 +130,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     await connExecute(conn, `UPDATE Task SET ${setParts.join(", ")} WHERE id = ?`, vals);
 
     const activities: { type: string; fromValue: string | null; toValue: string | null }[] = [];
-
     if (columnId !== undefined && columnId !== existing.columnId) {
       activities.push({ type: "STATUS_CHANGED", fromValue: existing.columnId as string | null, toValue: columnId || null });
     } else if (status && status !== existing.status) {
@@ -132,20 +138,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (priority && priority !== existing.priority) {
       activities.push({ type: "PRIORITY_CHANGED", fromValue: existing.priority as string, toValue: priority });
     }
-    if (assigneeId !== undefined && assigneeId !== existing.assigneeId) {
-      activities.push({ type: "ASSIGNEE_CHANGED", fromValue: (existing.assigneeId as string | null) ?? null, toValue: assigneeId || null });
-      // Notify the newly assigned user (not if unassigning or self-assign)
-      if (assigneeId && assigneeId !== userId) {
-        const taskTitleVal = (title ?? existing.title) as string;
-        createNotification({
-          userId: assigneeId,
-          type: "TASK_ASSIGNED",
-          actorName,
-          taskId,
-          projectId,
-          taskTitle: taskTitleVal,
-        }).catch(() => {});
-      }
+    if (hasAssigneeChange) {
+      activities.push({ type: "ASSIGNEE_CHANGED", fromValue: null, toValue: resolvedIds?.join(",") || null });
     }
     if (title && title !== existing.title) {
       activities.push({ type: "TITLE_CHANGED", fromValue: existing.title as string, toValue: title });
@@ -158,27 +152,42 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         [randomUUID(), taskId, userId, actorName, act.type, act.fromValue, act.toValue]
       );
     }
+
+    // Update join table
+    if (resolvedIds !== null) {
+      await connExecute(conn, `DELETE FROM TaskAssignee WHERE taskId = ?`, [taskId]);
+      for (const uid of resolvedIds.slice(0, 3)) {
+        await connExecute(conn, `INSERT IGNORE INTO TaskAssignee (taskId, userId, assignedAt) VALUES (?, ?, NOW())`, [taskId, uid]);
+      }
+    }
   });
+
+  // Notify newly added assignees
+  if (resolvedIds !== null) {
+    const taskTitle = (title ?? existing.title) as string;
+    for (const uid of resolvedIds.slice(0, 3)) {
+      if (uid !== userId) {
+        createNotification({ userId: uid, type: "TASK_ASSIGNED", actorName, taskId, projectId, taskTitle }).catch(() => {});
+      }
+    }
+  }
 
   const row = await queryOne<Record<string, unknown>>(
     `SELECT t.*,
-     u1.id as a_id, u1.name as a_name, u1.image as a_image
-     FROM Task t
-     LEFT JOIN User u1 ON t.assigneeId = u1.id
-     WHERE t.id = ?`,
+     (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'name', u.name, 'email', u.email, 'image', u.image))
+      FROM TaskAssignee ta JOIN User u ON ta.userId = u.id WHERE ta.taskId = t.id) as assigneesJson
+     FROM Task t WHERE t.id = ?`,
     [taskId]
   );
 
-  const commentCount = await queryOne<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM Comment WHERE taskId = ?`, [taskId]
-  );
-  const attachmentCount = await queryOne<{ cnt: number }>(
-    `SELECT COUNT(*) as cnt FROM Attachment WHERE taskId = ?`, [taskId]
-  );
+  const commentCount = await queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Comment WHERE taskId = ?`, [taskId]);
+  const attachmentCount = await queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Attachment WHERE taskId = ?`, [taskId]);
+  const assignees = parseAssignees(row!.assigneesJson);
 
   return NextResponse.json({
     ...row,
-    assignee: row!.a_id ? { id: row!.a_id, name: row!.a_name, image: row!.a_image } : null,
+    assignees,
+    assignee: assignees[0] ?? null,
     _count: { comments: Number(commentCount?.cnt ?? 0), attachments: Number(attachmentCount?.cnt ?? 0) },
   });
 }
@@ -188,24 +197,22 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { error, session } = await requireAuth();
   if (error) return error;
 
-  const { error: accessError, member } = await requireProjectAccess(
-    session!.user.id,
-    projectId
-  );
+  const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
   if (member!.role === "VIEWER" || member!.role === "MEMBER") {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 
-  // CLIENT can only delete their own tasks
   if (member!.role === "CLIENT") {
     const task = await queryOne<{ creatorId: string | null; assigneeId: string | null }>(
-      `SELECT creatorId, assigneeId FROM Task WHERE id = ? AND projectId = ?`,
-      [taskId, projectId]
+      `SELECT creatorId, assigneeId FROM Task WHERE id = ? AND projectId = ?`, [taskId, projectId]
     );
     const userId = session!.user.id;
-    if (!task || (task.creatorId !== userId && task.assigneeId !== userId)) {
+    const isAssigned = await queryOne<{ cnt: number }>(
+      `SELECT COUNT(*) as cnt FROM TaskAssignee WHERE taskId = ? AND userId = ?`, [taskId, userId]
+    );
+    if (!task || (task.creatorId !== userId && !isAssigned?.cnt)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }

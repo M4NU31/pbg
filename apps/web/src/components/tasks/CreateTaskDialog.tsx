@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AssigneeSelect } from "@/components/tasks/AssigneeSelect";
 import { toast } from "@/hooks/use-toast";
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
@@ -14,7 +15,7 @@ const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 interface CreateTaskDialogProps {
   projectId: string;
   defaultColumnId: string | null;
-  members: { id: string; name: string | null }[];
+  members: { id: string; name: string | null; image: string | null; email?: string }[];
   onClose: () => void;
   onCreated: () => void;
 }
@@ -23,7 +24,7 @@ export function CreateTaskDialog({ projectId, defaultColumnId, members, onClose,
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
-  const [assigneeId, setAssigneeId] = useState("unassigned");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -34,13 +35,7 @@ export function CreateTaskDialog({ projectId, defaultColumnId, members, onClose,
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          priority,
-          assigneeId: assigneeId === "unassigned" ? null : assigneeId,
-          columnId: defaultColumnId,
-        }),
+        body: JSON.stringify({ title, description, priority, assigneeIds, columnId: defaultColumnId }),
       });
       if (!res.ok) throw new Error();
       toast({ title: "Task created" });
@@ -85,29 +80,15 @@ export function CreateTaskDialog({ projectId, defaultColumnId, members, onClose,
             <div className="space-y-2">
               <Label>Priority</Label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PRIORITY_OPTIONS.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
-                  ))}
+                  {PRIORITY_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Assignee</Label>
-              <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name || m.id}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Assignees</Label>
+              <AssigneeSelect members={members} selectedIds={assigneeIds} onChange={setAssigneeIds} />
             </div>
           </div>
           <DialogFooter>

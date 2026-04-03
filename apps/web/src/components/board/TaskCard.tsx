@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { UserAvatar } from "@/components/ui/user-avatar";
+import { AssigneeStack } from "@/components/tasks/AssigneeSelect";
 import { MessageSquare, Paperclip, Monitor, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -75,19 +75,15 @@ export function TaskCard({ task, isDragging, onClick }: TaskCardProps) {
                 </span>
               )}
             </div>
-            {task.assignee && (
-              <UserAvatar
-                name={task.assignee.name}
-                email={task.assignee.email}
-                image={task.assignee.image}
-                className="h-5 w-5"
-              />
-            )}
-            {!task.assignee && (task.guestName || task.guestEmail) && (
+            {task.assignees?.length > 0 ? (
+              <AssigneeStack assignees={task.assignees} size="xs" />
+            ) : task.assignee ? (
+              <AssigneeStack assignees={[task.assignee]} size="xs" />
+            ) : (task.guestName || task.guestEmail) ? (
               <Avatar className="h-5 w-5">
                 <AvatarFallback className="text-[10px] bg-purple-100 text-purple-700">G</AvatarFallback>
               </Avatar>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>
