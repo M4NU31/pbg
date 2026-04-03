@@ -6,37 +6,38 @@ function ignoreElements(el: Element): boolean {
 
 export async function captureElement(el: HTMLElement): Promise<string> {
   el.scrollIntoView({ block: "center", inline: "center" });
-  // Allow scroll and layout to settle
-  await new Promise<void>((r) => setTimeout(r, 150));
+  // Allow scroll and repaint to settle
+  await new Promise<void>((r) => setTimeout(r, 200));
 
+  // Read element bounds AFTER scroll settles — coordinates are viewport-relative
   const rect = el.getBoundingClientRect();
-  const scrollX = window.scrollX;
-  const scrollY = window.scrollY;
 
-  // Capture full page so we get accurate rendering, then crop
-  const fullCanvas = await html2canvas(document.body, {
+  // Capture only the visible viewport (much more reliable than full-page)
+  const canvas = await html2canvas(document.body, {
     useCORS: true,
     logging: false,
+    scale: 1,
     ignoreElements,
-    scrollX: 0,
-    scrollY: 0,
-    windowWidth: document.documentElement.scrollWidth,
-    windowHeight: document.documentElement.scrollHeight,
-    width: document.documentElement.scrollWidth,
-    height: document.documentElement.scrollHeight,
+    x: window.scrollX,
+    y: window.scrollY,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    windowWidth: window.innerWidth,
+    windowHeight: window.innerHeight,
   });
 
+  // rect coords are viewport-relative and map 1:1 to the canvas at scale:1
   const padding = 20;
-  const x = Math.max(0, rect.left + scrollX - padding);
-  const y = Math.max(0, rect.top + scrollY - padding);
-  const w = Math.min(fullCanvas.width - x, rect.width + padding * 2);
-  const h = Math.min(fullCanvas.height - y, rect.height + padding * 2);
+  const x = Math.max(0, Math.round(rect.left) - padding);
+  const y = Math.max(0, Math.round(rect.top) - padding);
+  const w = Math.min(canvas.width - x, Math.round(rect.width) + padding * 2);
+  const h = Math.min(canvas.height - y, Math.round(rect.height) + padding * 2);
 
   const cropped = document.createElement("canvas");
-  cropped.width = w;
-  cropped.height = h;
+  cropped.width = Math.max(1, w);
+  cropped.height = Math.max(1, h);
   const ctx = cropped.getContext("2d")!;
-  ctx.drawImage(fullCanvas, x, y, w, h, 0, 0, w, h);
+  ctx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
 
   return cropped.toDataURL("image/png");
 }

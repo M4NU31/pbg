@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
       ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', 'MEDIUM', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         taskId, projectId, title.slice(0, 255), description?.slice(0, 5000) || null, num,
-        targetColumnId, guestName || null, guestEmail || null,
+        targetColumnId, reporterName || guestName || null, guestEmail || null,
         screenshotUrl || null, domSelector.slice(0, 500), domHtml?.slice(0, 5000) || null,
         pageUrl.slice(0, 2000),
         browserMeta?.browserName || null, browserMeta?.browserVersion || null,
