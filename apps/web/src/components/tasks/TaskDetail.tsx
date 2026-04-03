@@ -34,17 +34,20 @@ interface TaskDetailProps {
   onUpdate: () => void;
 }
 
-/** Renders comment text with @[Name](userId) mentions highlighted as @Name */
+/** Renders comment text with mentions highlighted.
+ *  Handles both structured @[Name](userId) and legacy plain @Name formats. */
 function CommentBody({ body }: { body: string }) {
-  const pattern = /@\[([^\]]+)\]\([^)]+\)/g;
+  // Match structured @[Name](userId) OR plain @Word mentions
+  const pattern = /@\[([^\]]+)\]\([^)]+\)|@([\w][^\s@]*(?:\s[\w][^\s@]*)*)/g;
   const parts: React.ReactNode[] = [];
   let last = 0;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(body)) !== null) {
     if (match.index > last) parts.push(body.slice(last, match.index));
+    const name = match[1] ?? match[2];
     parts.push(
       <span key={match.index} className="text-primary font-semibold">
-        @{match[1]}
+        @{name}
       </span>
     );
     last = match.index + match[0].length;
@@ -118,10 +121,16 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
 
   /** Expand @Name tokens to @[Name](userId) using mentionMap before sending */
   function buildCommentBody(raw: string): string {
-    return raw.replace(/@([\w][^\s@,]*)/g, (match, name) => {
-      const userId = mentionMap[name];
-      return userId ? `@[${name}](${userId})` : match;
-    });
+    const names = Object.keys(mentionMap);
+    if (!names.length) return raw;
+    // Sort longest first so "Manuel Francia" matches before "Manuel"
+    names.sort((a, b) => b.length - a.length);
+    let result = raw;
+    for (const name of names) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      result = result.replace(new RegExp(`@${escaped}`, "g"), `@[${name}](${mentionMap[name]})`);
+    }
+    return result;
   }
 
   function handleCommentKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
