@@ -305,9 +305,9 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
           )}
 
           {/* Pending invitations (invited but not yet signed in) */}
-          {clients.filter((c) => !c.joined).length > 0 && (
+          {clients.filter((c) => !c.joined && !clientMembers.some((m) => m.user.email.toLowerCase() === c.email.toLowerCase())).length > 0 && (
             <div className="space-y-2 mb-4">
-              {clients.filter((c) => !c.joined).map((inv) => (
+              {clients.filter((c) => !c.joined && !clientMembers.some((m) => m.user.email.toLowerCase() === c.email.toLowerCase())).map((inv) => (
                 <div key={inv.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card/50">
                   <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <Clock className="h-4 w-4 text-muted-foreground" />

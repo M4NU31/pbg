@@ -25,7 +25,7 @@ async function provisionClientMemberships(userId: string, email: string) {
       [email]
     );
     for (const inv of invitations) {
-      const existing = await query(
+      const existing = await query<{ id: string }>(
         `SELECT id FROM ProjectMember WHERE projectId = ? AND userId = ?`,
         [inv.projectId, userId]
       );
@@ -33,6 +33,12 @@ async function provisionClientMemberships(userId: string, email: string) {
         await execute(
           `INSERT INTO ProjectMember (id, projectId, userId, role, joinedAt) VALUES (?, ?, ?, 'CLIENT', NOW())`,
           [randomUUID(), inv.projectId, userId]
+        );
+      } else {
+        // Ensure any pre-existing membership is downgraded to CLIENT
+        await execute(
+          `UPDATE ProjectMember SET role = 'CLIENT' WHERE id = ?`,
+          [existing[0].id]
         );
       }
     }

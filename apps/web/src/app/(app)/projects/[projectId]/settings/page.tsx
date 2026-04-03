@@ -39,7 +39,9 @@ export default async function ProjectSettingsPage({
       );
 
   if (!memberRow) notFound();
-  if ((memberRow.role as string) === "CLIENT") redirect(`/projects/${projectId}`);
+  // Redirect any non-punchteam user (client) regardless of their stored role
+  const isClientEmail = !session.user.email?.endsWith("@punchteam.com");
+  if (isClientEmail || (memberRow.role as string) === "CLIENT") redirect(`/projects/${projectId}`);
 
   const memberRows = await query<Record<string, unknown>>(
     `SELECT pm.id, pm.projectId, pm.userId, pm.role, pm.joinedAt,

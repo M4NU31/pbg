@@ -101,13 +101,17 @@ export async function requireProjectAccess(
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), member: null };
   }
 
+  // Force CLIENT role for any non-punchteam email regardless of DB value
+  const isClientEmail = !session?.user?.email?.endsWith("@punchteam.com");
+  const effectiveRole = isClientEmail ? "CLIENT" : (row.role as string);
+
   return {
     error: null,
     member: {
       id: row.id as string,
       projectId: row.projectId as string,
       userId: row.userId as string,
-      role: row.role as string,
+      role: effectiveRole,
       joinedAt: row.joinedAt as Date,
       project: {
         id: row.p_id as string,
