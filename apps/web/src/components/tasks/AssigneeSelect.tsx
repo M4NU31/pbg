@@ -120,8 +120,8 @@ export function AssigneeStack({ assignees, size = "sm" }: { assignees: { id: str
   return (
     <div className="flex items-center">
       {assignees.slice(0, 3).map((a, i) => (
-        <div key={a.id} className={i > 0 ? "-ml-1.5" : ""} style={{ zIndex: 3 - i }}>
-          <UserAvatar name={a.name} email={a.email} image={a.image} className={`${sz} ring-2 ring-card`} title={a.name ?? a.email ?? ""} />
+        <div key={a.id} className={i > 0 ? "-ml-1.5" : ""} style={{ zIndex: 3 - i }} title={a.name ?? a.email ?? ""}>
+          <UserAvatar name={a.name} email={a.email} image={a.image} className={`${sz} ring-2 ring-card`} />
         </div>
       ))}
     </div>
