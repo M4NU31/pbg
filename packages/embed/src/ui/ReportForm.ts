@@ -11,6 +11,7 @@ interface FormData {
   embedKey: string;
   apiUrl: string;
   columns: BoardColumn[];
+  reporterName?: string;
 }
 
 export class ReportForm {
@@ -119,6 +120,7 @@ export class ReportForm {
           domHtml: data.domInfo.outerHtml,
           pageUrl: data.pageUrl,
           columnId,
+          reporterName: data.reporterName,
           browserMeta: data.browserMeta,
         });
 

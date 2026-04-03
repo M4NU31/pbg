@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, guestName, guestEmail, browserMeta } = body;
+  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, reporterName, guestName, guestEmail, browserMeta } = body;
 
   if (!embedKey || !title || !domSelector || !pageUrl) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: CORS_HEADERS });
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     await connExecute(
       conn,
       `INSERT INTO Activity (id, taskId, actorName, type, createdAt) VALUES (?, ?, ?, 'TASK_CREATED', NOW())`,
-      [activityId, taskId, guestName || "Guest"]
+      [activityId, taskId, reporterName || guestName || "Guest"]
     );
 
     return num;

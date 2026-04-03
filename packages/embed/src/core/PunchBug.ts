@@ -9,6 +9,7 @@ export interface PunchBugConfig {
   embedKey: string;
   apiUrl: string;
   position?: "right" | "left" | "bottom-right" | "bottom-left";
+  reporterName?: string;
 }
 
 export interface BoardColumn {
@@ -125,6 +126,7 @@ export class PunchBug {
       embedKey: this.config.embedKey,
       apiUrl: this.config.apiUrl,
       columns: this.columns,
+      reporterName: this.config.reporterName,
     });
   }
 }

@@ -7,6 +7,7 @@ export interface ReportPayload {
   domHtml: string;
   pageUrl: string;
   columnId?: string;
+  reporterName?: string;
   browserMeta: {
     browserName: string;
     browserVersion: string;

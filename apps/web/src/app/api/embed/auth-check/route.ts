@@ -39,5 +39,9 @@ export async function GET(req: NextRequest) {
     [embedKey, session.user.id]
   );
 
-  return NextResponse.json({ allowed: !!member }, { headers });
+  return NextResponse.json({
+    allowed: !!member,
+    userName: session.user.name || session.user.email || null,
+    userId: session.user.id,
+  }, { headers });
 }
