@@ -17,7 +17,9 @@ export default async function AdminUsersPage() {
     `SELECT u.id, u.name, u.email, u.image, u.systemRole, u.createdAt,
      (SELECT GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR ', ')
       FROM Project p WHERE p.ownerId = u.id AND p.archivedAt IS NULL) as ownedProjects
-     FROM User u ORDER BY u.createdAt DESC`
+     FROM User u
+     WHERE u.email LIKE '%@punchteam.com'
+     ORDER BY u.createdAt DESC`
   );
 
   return (

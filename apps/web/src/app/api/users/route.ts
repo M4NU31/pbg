@@ -16,7 +16,9 @@ export async function GET() {
     `SELECT u.id, u.name, u.email, u.image, u.systemRole, u.createdAt,
      (SELECT GROUP_CONCAT(p.name ORDER BY p.name SEPARATOR ', ')
       FROM Project p WHERE p.ownerId = u.id AND p.archivedAt IS NULL) as ownedProjects
-     FROM User u ORDER BY u.createdAt DESC`
+     FROM User u
+     WHERE u.email LIKE '%@punchteam.com'
+     ORDER BY u.createdAt DESC`
   );
 
   return NextResponse.json(rows);
@@ -36,6 +38,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Cannot change your own rank" }, { status: 400 });
   }
 
+  // Protect client accounts from role changes
+  const target = await query<{ email: string }>(`SELECT email FROM User WHERE id = ?`, [userId]);
+  if (!target[0] || !target[0].email.endsWith("@punchteam.com")) {
+    return NextResponse.json({ error: "Client accounts cannot be managed here" }, { status: 400 });
+  }
+
   await execute(`UPDATE User SET systemRole = ? WHERE id = ?`, [newRole, userId]);
   return NextResponse.json({ ok: true });
 }
@@ -50,6 +58,12 @@ export async function DELETE(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   if (userId === session!.user.id) {
     return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+  }
+
+  // Protect client accounts from deletion here — revoke via project settings instead
+  const target = await query<{ email: string }>(`SELECT email FROM User WHERE id = ?`, [userId]);
+  if (!target[0] || !target[0].email.endsWith("@punchteam.com")) {
+    return NextResponse.json({ error: "Client accounts cannot be managed here" }, { status: 400 });
   }
 
   await execute(`DELETE FROM User WHERE id = ?`, [userId]);
