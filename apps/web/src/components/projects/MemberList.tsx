@@ -71,6 +71,7 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
   const [clientLoading, setClientLoading] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<ClientInvitation | null>(null);
   const [revokeLoading, setRevokeLoading] = useState(false);
+  const [revokeMember, setRevokeMember] = useState<Member | null>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -202,6 +203,27 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
     }
   }
 
+  // Fallback: remove orphaned client member that has no invitation record
+  async function revokeClientMember() {
+    if (!revokeMember) return;
+    setRevokeLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: revokeMember.user.id }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Client access revoked" });
+      router.refresh();
+    } catch {
+      toast({ title: "Failed to revoke access", variant: "destructive" });
+    } finally {
+      setRevokeLoading(false);
+      setRevokeMember(null);
+    }
+  }
+
   const teamMembers = members.filter((m) => m.user.email.endsWith("@punchteam.com"));
   const clientMembers = members.filter((m) => !m.user.email.endsWith("@punchteam.com"));
 
@@ -293,12 +315,10 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       <span>Joined</span>
                     </div>
-                    {inv && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => setRevokeTarget(inv)} title="Revoke access">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => inv ? setRevokeTarget(inv) : setRevokeMember(member)} title="Revoke access">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 );
               })}
@@ -374,6 +394,17 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
         variant="danger"
         loading={revokeLoading}
         onConfirm={revokeClient}
+      />
+
+      <ConfirmDialog
+        open={!!revokeMember}
+        onOpenChange={(open) => { if (!open) setRevokeMember(null); }}
+        title="Revoke client access?"
+        description={`${revokeMember?.user.name ?? revokeMember?.user.email} will no longer be able to access this project. Their tasks and comments will be kept.`}
+        confirmLabel="Revoke access"
+        variant="danger"
+        loading={revokeLoading}
+        onConfirm={revokeClientMember}
       />
     </>
   );
