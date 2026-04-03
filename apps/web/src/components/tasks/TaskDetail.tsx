@@ -133,7 +133,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentBody, setEditingCommentBody] = useState("");
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
-  const [screenshotExpanded, setScreenshotExpanded] = useState(false);
+  const [screenshotLightbox, setScreenshotLightbox] = useState(false);
 
   async function saveCommentEdit(commentId: string) {
     if (!editingCommentBody.trim()) return;
@@ -304,10 +304,9 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
           <span className="text-sm font-mono text-muted-foreground">#{task.taskNumber}</span>
           <div className="flex items-center gap-1">
             {directLink && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="View element on page" asChild>
-                <a href={directLink} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                </a>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="View element on page"
+                onClick={() => window.open(directLink, "_blank", "noopener,noreferrer")}>
+                <ExternalLink className="h-4 w-4" />
               </Button>
             )}
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copy link">
@@ -433,13 +432,13 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-muted-foreground">Screenshot</p>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setScreenshotExpanded(!screenshotExpanded)}>
-                    <Maximize2 className="h-3 w-3 mr-1" />
-                    {screenshotExpanded ? "Collapse" : "Expand"}
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setScreenshotLightbox(true)}>
+                    <Maximize2 className="h-3 w-3 mr-1" />Expand
                   </Button>
                 </div>
-                <div className={`relative rounded-md overflow-hidden border bg-muted ${screenshotExpanded ? "" : "max-h-48"}`}>
-                  <img src={task.screenshotUrl} alt="Screenshot" className="w-full object-cover" style={screenshotExpanded ? {} : { maxHeight: "192px", objectFit: "cover" }} />
+                <div className="relative rounded-md overflow-hidden border bg-muted max-h-48 cursor-zoom-in"
+                  onClick={() => setScreenshotLightbox(true)}>
+                  <img src={task.screenshotUrl} alt="Screenshot" className="w-full object-cover" style={{ maxHeight: "192px", objectFit: "cover" }} />
                 </div>
               </div>
             )}
@@ -603,6 +602,18 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
           </div>
         </div>
       </div>
+
+      {/* Screenshot lightbox */}
+      {screenshotLightbox && task?.screenshotUrl && (
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setScreenshotLightbox(false)}>
+          <img src={task.screenshotUrl} alt="Screenshot" className="max-w-full max-h-full rounded-lg shadow-2xl object-contain" onClick={(e) => e.stopPropagation()} />
+          <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-white/20"
+            onClick={() => setScreenshotLightbox(false)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+      )}
 
       <ConfirmDialog
         open={confirmArchive}

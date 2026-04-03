@@ -12,6 +12,7 @@ interface FormData {
   apiUrl: string;
   columns: BoardColumn[];
   reporterName?: string;
+  onSuccess?: () => void;
 }
 
 export class ReportForm {
@@ -129,6 +130,7 @@ export class ReportForm {
         if (formEl) formEl.style.display = "none";
         if (successEl) successEl.style.display = "block";
 
+        data.onSuccess?.();
         setTimeout(() => this.close(), 3000);
       } catch (err) {
         submitBtn.disabled = false;
