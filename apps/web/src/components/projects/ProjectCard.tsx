@@ -38,7 +38,9 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const isOwner = project.ownerId === currentUserId;
   const canArchive = isRank1 || (systemRole === "RANK2" && isOwner);
   const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
-  const canRetakeScreenshot = (isRank1 || isOwner) && !!project.siteUrl;
+  const canRetakeScreenshot =
+    (isRank1 || systemRole === "RANK2" || project.role === "OWNER" || project.role === "ADMIN") &&
+    !!project.siteUrl;
 
   const thumbSrc = `/screenshots/${project.id}.jpg?v=${imgKey}`;
 
