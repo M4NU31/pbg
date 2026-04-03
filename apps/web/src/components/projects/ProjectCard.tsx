@@ -42,7 +42,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
     (isRank1 || systemRole === "RANK2" || project.role === "OWNER" || project.role === "ADMIN") &&
     !!project.siteUrl;
 
-  const thumbSrc = `/screenshots/${project.id}.jpg?v=${imgKey}`;
+  const thumbSrc = `/api/projects/${project.id}/screenshot?v=${imgKey}`;
 
   function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
     (e.currentTarget as HTMLImageElement).style.display = "none";

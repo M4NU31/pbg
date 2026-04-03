@@ -3,6 +3,10 @@ import fs from "fs/promises";
 
 const SCREENSHOTS_DIR = path.join(process.cwd(), "public", "screenshots");
 
+export function getScreenshotPath(projectId: string): string {
+  return path.join(SCREENSHOTS_DIR, `${projectId}.jpg`);
+}
+
 /**
  * Fetches a screenshot of `siteUrl` via thum.io and saves it permanently
  * to public/screenshots/{projectId}.jpg so it's served locally from disk.

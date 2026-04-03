@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -192,6 +192,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>{STEPS[step]}</DialogTitle>
+          <DialogDescription className="sr-only">Step {step + 1} of {STEPS.length}: {STEPS[step]}</DialogDescription>
         </DialogHeader>
 
         {/* Step indicators */}

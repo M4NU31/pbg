@@ -1,10 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
-import { captureScreenshot } from "@/lib/screenshot";
+import { captureScreenshot, getScreenshotPath } from "@/lib/screenshot";
+import fs from "fs/promises";
 
 type Params = { params: Promise<{ projectId: string }> };
 
+/** GET — serve the cached screenshot file directly */
+export async function GET(_req: NextRequest, { params }: Params) {
+  const { projectId } = await params;
+
+  const filePath = getScreenshotPath(projectId);
+  try {
+    const data = await fs.readFile(filePath);
+    return new NextResponse(data, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Cache-Control": "public, max-age=3600",
+      },
+    });
+  } catch {
+    return new NextResponse(null, { status: 404 });
+  }
+}
+
+/** POST — capture and save a new screenshot */
 export async function POST(_req: NextRequest, { params }: Params) {
   const { projectId } = await params;
   const { error, session } = await requireAuth();
@@ -24,9 +45,12 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   try {
     await captureScreenshot(projectId, project.siteUrl);
-    return NextResponse.json({ ok: true, url: `/screenshots/${projectId}.jpg` });
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[screenshot]", err);
-    return NextResponse.json({ error: "Screenshot failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Screenshot failed" },
+      { status: 500 }
+    );
   }
 }
