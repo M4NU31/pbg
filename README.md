@@ -18,7 +18,7 @@ A self-hosted website QA and bug-reporting tool inspired by BugHerd. Teams embed
 | Styling | [Tailwind CSS v3](https://tailwindcss.com/) |
 | Drag-and-drop | [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) |
 | Data fetching | [SWR](https://swr.vercel.app/) (client-side) |
-| Screenshots | [Puppeteer](https://pptr.dev/) (headless Chromium, server-side) |
+| Screenshots | [thum.io](https://www.thum.io/) — fetched once on project creation, cached locally on disk |
 | File storage | Local filesystem (`public/uploads/`) or [Cloudinary](https://cloudinary.com/) |
 
 ### Embed Widget (`packages/embed`)
@@ -226,5 +226,4 @@ The embed key is shown during project creation and in project settings.
 ## Environment Notes
 
 - **Google OAuth redirect URI** must be set to `{NEXTAUTH_URL}/api/auth/callback/google` in the Google Cloud Console.
-- **Puppeteer** downloads Chromium on `npm install`. On Linux servers you may need additional system dependencies — see the [Puppeteer troubleshooting guide](https://pptr.dev/troubleshooting).
-- Screenshots are stored in `apps/web/public/screenshots/` and served as static files. This directory is gitignored.
+- Screenshots are fetched from thum.io on first project creation and cached in `apps/web/public/screenshots/` as static files. No additional system dependencies required. This directory is gitignored.

@@ -3,34 +3,29 @@ import fs from "fs/promises";
 
 const SCREENSHOTS_DIR = path.join(process.cwd(), "public", "screenshots");
 
+/**
+ * Fetches a screenshot of `siteUrl` via thum.io and saves it permanently
+ * to public/screenshots/{projectId}.jpg so it's served locally from disk.
+ * Called once on project creation; retake is triggered manually.
+ */
 export async function captureScreenshot(projectId: string, siteUrl: string): Promise<void> {
   await fs.mkdir(SCREENSHOTS_DIR, { recursive: true });
 
-  // Import puppeteer dynamically so it doesn't affect client bundles
-  const puppeteer = (await import("puppeteer")).default;
+  // thum.io renders the page and returns a JPEG — we download and cache it locally
+  const thumbUrl = `https://image.thum.io/get/width/1280/crop/800/noanimate/${siteUrl}`;
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+  const response = await fetch(thumbUrl, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; PunchQA/1.0)" },
+    signal: AbortSignal.timeout(30_000),
   });
 
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
-    await page.goto(siteUrl, { waitUntil: "networkidle2", timeout: 30000 });
-    // Allow 3s for lazy-loaded/animated content to settle
-    await new Promise<void>((r) => setTimeout(r, 3000));
-
-    const outputPath = path.join(SCREENSHOTS_DIR, `${projectId}.jpg`);
-    await page.screenshot({
-      path: outputPath as `${string}.jpg`,
-      type: "jpeg",
-      quality: 82,
-      clip: { x: 0, y: 0, width: 1280, height: 800 },
-    });
-  } finally {
-    await browser.close();
+  if (!response.ok) {
+    throw new Error(`Screenshot service returned ${response.status}`);
   }
+
+  const buffer = await response.arrayBuffer();
+  const outputPath = path.join(SCREENSHOTS_DIR, `${projectId}.jpg`);
+  await fs.writeFile(outputPath, Buffer.from(buffer));
 }
 
 export async function deleteScreenshot(projectId: string): Promise<void> {
