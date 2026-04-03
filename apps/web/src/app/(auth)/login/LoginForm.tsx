@@ -33,8 +33,8 @@ export function LoginForm() {
 
         {error && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400 text-center">
-            {error === "AccessDenied"
-              ? "Access denied. Please try a different account."
+            {error === "AccessDenied" || error === "DomainNotAllowed"
+              ? "This account is not authorized. Only @punchteam.com accounts or invited clients may sign in."
               : "An error occurred. Please try again."}
           </div>
         )}

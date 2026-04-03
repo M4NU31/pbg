@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { error, session } = await requireAuth();
   if (error) return error;
 
-  const { error: accessError } = await requireProjectAccess(
+  const { error: accessError, member } = await requireProjectAccess(
     session!.user.id,
     projectId
   );
@@ -83,6 +83,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   );
   if (!existing) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  // CLIENT role can only modify tasks they created or are assigned to
+  if (member!.role === "CLIENT") {
+    const userId = session!.user.id;
+    if (existing.creatorId !== userId && existing.assigneeId !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const setParts: string[] = [];
@@ -167,6 +175,18 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   if (member!.role === "VIEWER" || member!.role === "MEMBER") {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  }
+
+  // CLIENT can only delete their own tasks
+  if (member!.role === "CLIENT") {
+    const task = await queryOne<{ creatorId: string | null; assigneeId: string | null }>(
+      `SELECT creatorId, assigneeId FROM Task WHERE id = ? AND projectId = ?`,
+      [taskId, projectId]
+    );
+    const userId = session!.user.id;
+    if (!task || (task.creatorId !== userId && task.assigneeId !== userId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   await execute(`DELETE FROM Task WHERE id = ? AND projectId = ?`, [taskId, projectId]);

@@ -202,16 +202,20 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => setCreateInColumnId(columns[0]?.id ?? null)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Task
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/projects/${projectId}/settings`}>
-              <Settings className="h-4 w-4 mr-1" />
-              Settings
-            </Link>
-          </Button>
+          {currentUserRole !== "CLIENT" && (
+            <Button size="sm" onClick={() => setCreateInColumnId(columns[0]?.id ?? null)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Task
+            </Button>
+          )}
+          {canManage && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/projects/${projectId}/settings`}>
+                <Settings className="h-4 w-4 mr-1" />
+                Settings
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

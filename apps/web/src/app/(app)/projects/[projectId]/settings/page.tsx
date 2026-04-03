@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { queryOne, query, parseJson } from "@/lib/db";
 import { gravatarUrl } from "@/lib/gravatar";
+import { getSystemRole } from "@/lib/auth-helpers";
 import { notFound, redirect } from "next/navigation";
 import { EmbedSnippet } from "@/components/projects/EmbedSnippet";
 import { MemberList } from "@/components/projects/MemberList";
@@ -38,6 +39,7 @@ export default async function ProjectSettingsPage({
       );
 
   if (!memberRow) notFound();
+  if ((memberRow.role as string) === "CLIENT") redirect(`/projects/${projectId}`);
 
   const memberRows = await query<Record<string, unknown>>(
     `SELECT pm.id, pm.projectId, pm.userId, pm.role, pm.joinedAt,
@@ -70,6 +72,8 @@ export default async function ProjectSettingsPage({
   };
 
   const isAdmin = memberRow.role === "OWNER" || memberRow.role === "ADMIN";
+  const systemRole = await getSystemRole(session.user.id, session.user.email);
+  const canManageClients = isAdmin || systemRole === "RANK1" || systemRole === "RANK2";
   const embedUrl = `${process.env.NEXT_PUBLIC_APP_URL}/embed/punchbug.js`;
 
   return (
@@ -97,6 +101,7 @@ export default async function ProjectSettingsPage({
         members={project.members}
         currentUserId={session.user.id}
         isAdmin={isAdmin}
+        canManageClients={canManageClients}
       />
     </div>
   );

@@ -59,7 +59,7 @@ function CommentBody({ body, members }: { body: string; members: Member[] }) {
   return <p className="text-sm whitespace-pre-wrap">{parts}</p>;
 }
 
-export function TaskDetail({ taskId, projectId, members, currentUserId, onClose, onUpdate }: TaskDetailProps) {
+export function TaskDetail({ taskId, projectId, members, currentUserId, currentUserRole, onClose, onUpdate }: TaskDetailProps) {
   const { data: task, mutate } = useSWR(`/api/projects/${projectId}/tasks/${taskId}`, fetcher);
   const { data: columns = [] } = useSWR<{ id: string; name: string }[]>(
     `/api/projects/${projectId}/columns`,
@@ -302,12 +302,16 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, onClose,
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copy link">
               <Link2 className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setConfirmArchive(true)} title={task.archivedAt ? "Unarchive" : "Archive"}>
-              {task.archivedAt ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)} title="Delete">
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {(currentUserRole !== "CLIENT" || task.creatorId === currentUserId || task.assigneeId === currentUserId) && (
+              <>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setConfirmArchive(true)} title={task.archivedAt ? "Unarchive" : "Archive"}>
+                  {task.archivedAt ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)} title="Delete">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
