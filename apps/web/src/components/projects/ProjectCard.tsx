@@ -36,7 +36,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
 
   const thumbUrl = project.siteUrl
-    ? `https://image.thum.io/get/width/480/crop/280/${project.siteUrl}`
+    ? `https://image.thum.io/get/width/600/crop/400/maxAge/720/noanimate/${project.siteUrl}`
     : null;
 
   async function handleArchive() {
@@ -59,7 +59,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
     <>
       <Card className="hover:shadow-md transition-shadow overflow-hidden flex flex-col">
         {/* Site screenshot thumbnail */}
-        <div className="relative w-full h-[140px] bg-muted overflow-hidden shrink-0">
+        <div className="relative w-full h-[200px] bg-muted overflow-hidden shrink-0">
           {thumbUrl ? (
             <img
               src={thumbUrl}
