@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import type { SystemRole } from "@/lib/auth-helpers";
 
 interface AppShellProps {
@@ -44,18 +45,21 @@ export function AppShell({ user, systemRole, avatarUrl, isClient, children }: Ap
 
       {/* Main content */}
       <main className="flex-1 overflow-auto min-w-0 flex flex-col">
-        {/* Mobile top bar */}
-        <div className="flex items-center h-12 px-4 border-b bg-card shrink-0 md:hidden">
+        {/* Top bar — mobile hamburger + bell always visible */}
+        <div className="flex items-center h-12 px-4 border-b bg-card shrink-0">
           <button
             onClick={() => setOpen(true)}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent md:hidden"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2 ml-3">
+          <div className="flex items-center gap-2 ml-3 md:hidden">
             <img src="/logo.svg" alt="" className="h-5 w-5" />
             <span className="font-bold text-sm">Punch QA Tool</span>
+          </div>
+          <div className="ml-auto">
+            <NotificationBell />
           </div>
         </div>
 

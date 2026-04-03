@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, execute, withTransaction, connExecute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
 import { gravatarUrl } from "@/lib/gravatar";
+import { createNotification } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
@@ -133,6 +134,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     if (assigneeId !== undefined && assigneeId !== existing.assigneeId) {
       activities.push({ type: "ASSIGNEE_CHANGED", fromValue: (existing.assigneeId as string | null) ?? null, toValue: assigneeId || null });
+      // Notify the newly assigned user (not if unassigning or self-assign)
+      if (assigneeId && assigneeId !== userId) {
+        const taskTitleVal = (title ?? existing.title) as string;
+        createNotification({
+          userId: assigneeId,
+          type: "TASK_ASSIGNED",
+          actorName,
+          taskId,
+          projectId,
+          taskTitle: taskTitleVal,
+        }).catch(() => {});
+      }
     }
     if (title && title !== existing.title) {
       activities.push({ type: "TITLE_CHANGED", fromValue: existing.title as string, toValue: title });

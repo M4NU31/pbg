@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, withTransaction, connExecute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
 import { gravatarUrl } from "@/lib/gravatar";
+import { createNotification, parseMentions } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
@@ -75,6 +76,25 @@ export async function POST(req: NextRequest, { params }: Params) {
      WHERE c.id = ?`,
     [commentId]
   );
+
+  // Notify mentioned users (fire-and-forget)
+  const task = await queryOne<{ title: string }>(
+    `SELECT title FROM Task WHERE id = ?`, [taskId]
+  );
+  if (task) {
+    const mentionedIds = parseMentions(commentBody.trim()).filter((id) => id !== userId);
+    for (const mentionedId of mentionedIds) {
+      createNotification({
+        userId: mentionedId,
+        type: "MENTION",
+        actorName,
+        taskId,
+        projectId,
+        taskTitle: task.title,
+        commentId,
+      }).catch(() => {});
+    }
+  }
 
   return NextResponse.json(
     {
