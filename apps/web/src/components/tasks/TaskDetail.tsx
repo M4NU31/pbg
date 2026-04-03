@@ -34,18 +34,13 @@ interface TaskDetailProps {
   onUpdate: () => void;
 }
 
-/** Renders comment text with @mentions highlighted */
-function CommentBody({ body, members }: { body: string; members: Member[] }) {
-  const names = members.map((m) => m.name).filter(Boolean) as string[];
-  if (!names.length) return <span className="text-sm whitespace-pre-wrap">{body}</span>;
-
-  const escaped = names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const regex = new RegExp(`@(${escaped.join("|")})`, "g");
-
+/** Renders comment text with @[Name](userId) mentions highlighted as @Name */
+function CommentBody({ body }: { body: string }) {
+  const pattern = /@\[([^\]]+)\]\([^)]+\)/g;
   const parts: React.ReactNode[] = [];
   let last = 0;
   let match: RegExpExecArray | null;
-  while ((match = regex.exec(body)) !== null) {
+  while ((match = pattern.exec(body)) !== null) {
     if (match.index > last) parts.push(body.slice(last, match.index));
     parts.push(
       <span key={match.index} className="text-primary font-semibold">
@@ -55,7 +50,6 @@ function CommentBody({ body, members }: { body: string; members: Member[] }) {
     last = match.index + match[0].length;
   }
   if (last < body.length) parts.push(body.slice(last));
-
   return <p className="text-sm whitespace-pre-wrap">{parts}</p>;
 }
 
@@ -113,7 +107,8 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
     if (!member.name) return;
     const before = comment.slice(0, mentionStart);
     const after = comment.slice(mentionStart + 1 + mentionQuery.length);
-    setComment(`${before}@${member.name} ${after}`);
+    // Store structured mention so server can parse userId for notifications
+    setComment(`${before}@[${member.name}](${member.id}) ${after}`);
     setMentionStart(-1);
     setMentionQuery("");
     setTimeout(() => commentRef.current?.focus(), 0);
@@ -546,7 +541,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
                             </div>
                           </div>
                         ) : (
-                          <CommentBody body={c.body} members={members} />
+                          <CommentBody body={c.body} />
                         )}
                       </div>
                     </div>
