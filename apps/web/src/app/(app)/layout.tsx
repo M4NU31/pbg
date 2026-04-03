@@ -16,10 +16,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const systemRole = await getSystemRole(session.user.id, session.user.email);
   const avatarUrl = session.user.image ?? gravatarUrl(session.user.email ?? "");
+  const isClient = !session.user.email?.endsWith("@punchteam.com");
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar user={session.user} systemRole={systemRole} avatarUrl={avatarUrl} />
+      <Sidebar user={session.user} systemRole={systemRole} avatarUrl={avatarUrl} isClient={isClient} />
       <main className="flex-1 overflow-auto">
         {children}
       </main>

@@ -85,11 +85,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  // CLIENT role can only modify tasks they created or are assigned to
+  // CLIENT role: moving a task (columnId only) is allowed on any task.
+  // Editing, archiving, or any other field change is restricted to own tasks.
   if (member!.role === "CLIENT") {
-    const userId = session!.user.id;
-    if (existing.creatorId !== userId && existing.assigneeId !== userId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const isMoveOnly = columnId !== undefined &&
+      title === undefined && description === undefined &&
+      priority === undefined && assigneeId === undefined &&
+      archive === undefined && status === undefined;
+
+    if (!isMoveOnly) {
+      const userId = session!.user.id;
+      if (existing.creatorId !== userId && existing.assigneeId !== userId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
   }
 

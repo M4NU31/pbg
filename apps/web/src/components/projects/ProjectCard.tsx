@@ -57,11 +57,13 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-base">{project.name}</CardTitle>
             <div className="flex items-center gap-1 shrink-0">
-              <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                <Link href={`/projects/${project.id}/settings`}>
-                  <Settings className="h-4 w-4" />
-                </Link>
-              </Button>
+              {project.role !== "CLIENT" && (
+                <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                  <Link href={`/projects/${project.id}/settings`}>
+                    <Settings className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
               {canArchive && (
                 <Button
                   variant="ghost"

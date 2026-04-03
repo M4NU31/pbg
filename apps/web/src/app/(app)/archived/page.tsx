@@ -2,11 +2,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSystemRole } from "@/lib/auth-helpers";
 import { query, parseJson } from "@/lib/db";
+import { redirect } from "next/navigation";
 import { ArchivedProjectCard } from "@/components/projects/ArchivedProjectCard";
 
 export default async function ArchivedPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
+
+  // Clients cannot view archived projects
+  if (!session.user.email?.endsWith("@punchteam.com")) redirect("/dashboard");
 
   const systemRole = await getSystemRole(session.user.id, session.user.email);
   const isRank1 = systemRole === "RANK1";

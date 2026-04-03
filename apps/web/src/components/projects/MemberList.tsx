@@ -201,8 +201,8 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
     }
   }
 
-  const teamMembers = members.filter((m) => m.role !== "CLIENT");
-  const clientMembers = members.filter((m) => m.role === "CLIENT");
+  const teamMembers = members.filter((m) => m.user.email.endsWith("@punchteam.com"));
+  const clientMembers = members.filter((m) => !m.user.email.endsWith("@punchteam.com"));
 
   return (
     <>

@@ -18,15 +18,16 @@ interface SidebarProps {
   };
   systemRole: SystemRole;
   avatarUrl?: string;
+  isClient?: boolean;
 }
 
-export function Sidebar({ user, systemRole, avatarUrl }: SidebarProps) {
+export function Sidebar({ user, systemRole, avatarUrl, isClient = false }: SidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
   const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/archived", icon: Archive, label: "Archived Projects" },
+    ...(!isClient ? [{ href: "/archived", icon: Archive, label: "Archived Projects" }] : []),
     ...(systemRole === "RANK1" ? [{ href: "/admin/users", icon: Users, label: "Manage Users" }] : []),
   ];
 
