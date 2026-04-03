@@ -74,6 +74,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
 
   // ── comment @mention ─────────────────────────────────────────────
   const [comment, setComment] = useState("");
+  const [mentionMap, setMentionMap] = useState<Record<string, string>>({}); // name → userId
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStart, setMentionStart] = useState(-1);
   const [mentionIndex, setMentionIndex] = useState(0);
@@ -81,7 +82,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
 
   const mentionCandidates = mentionQuery !== "" || mentionStart >= 0
     ? members.filter(
-        (m) => m.name && m.name.toLowerCase().includes(mentionQuery.toLowerCase())
+        (m) => m.name && m.id !== currentUserId && m.name.toLowerCase().includes(mentionQuery.toLowerCase())
       )
     : [];
 
@@ -107,11 +108,20 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
     if (!member.name) return;
     const before = comment.slice(0, mentionStart);
     const after = comment.slice(mentionStart + 1 + mentionQuery.length);
-    // Store structured mention so server can parse userId for notifications
-    setComment(`${before}@[${member.name}](${member.id}) ${after}`);
+    // Show clean @Name in textarea; keep name→id map to reconstruct on submit
+    setComment(`${before}@${member.name} ${after}`);
+    setMentionMap((prev) => ({ ...prev, [member.name!]: member.id }));
     setMentionStart(-1);
     setMentionQuery("");
     setTimeout(() => commentRef.current?.focus(), 0);
+  }
+
+  /** Expand @Name tokens to @[Name](userId) using mentionMap before sending */
+  function buildCommentBody(raw: string): string {
+    return raw.replace(/@([\w][^\s@,]*)/g, (match, name) => {
+      const userId = mentionMap[name];
+      return userId ? `@[${name}](${userId})` : match;
+    });
   }
 
   function handleCommentKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -252,10 +262,11 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
       const res = await fetch(`/api/projects/${projectId}/tasks/${taskId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: comment }),
+        body: JSON.stringify({ body: buildCommentBody(comment) }),
       });
       if (!res.ok) throw new Error();
       setComment("");
+      setMentionMap({});
       mutate();
     } catch {
       toast({ title: "Failed to post comment", variant: "destructive" });
@@ -486,6 +497,9 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
               <div className="space-y-4">
                 {task.comments?.map((c: any) => {
                   const isOwn = c.author?.id === currentUserId;
+                  const canDeleteComment = isOwn ||
+                    currentUserRole === "OWNER" || currentUserRole === "ADMIN" ||
+                    currentUserRole === "RANK1" || currentUserRole === "RANK2";
                   const isEditing = editingCommentId === c.id;
                   return (
                     <div key={c.id} className="flex gap-3 group">
@@ -497,15 +511,17 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
                           {c.updatedAt !== c.createdAt && (
                             <span className="text-xs text-muted-foreground italic">(edited)</span>
                           )}
-                          {isOwn && !isEditing && (
+                          {(isOwn || canDeleteComment) && !isEditing && (
                             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                              <Button
-                                variant="ghost" size="icon" className="h-5 w-5"
-                                onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(c.body); }}
-                                title="Edit comment"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
+                              {isOwn && (
+                                <Button
+                                  variant="ghost" size="icon" className="h-5 w-5"
+                                  onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(c.body); }}
+                                  title="Edit comment"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost" size="icon" className="h-5 w-5 text-destructive hover:text-destructive"
                                 onClick={() => deleteComment(c.id)}

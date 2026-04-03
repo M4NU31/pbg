@@ -19,7 +19,7 @@ async function guardComment(
   if (accessError) return { error: accessError, comment: null };
 
   const isAuthor = comment.authorId === userId;
-  const canManage = isAuthor || member!.role === "OWNER" || member!.role === "ADMIN" || member!.role === "RANK1";
+  const canManage = isAuthor || member!.role === "OWNER" || member!.role === "ADMIN" || member!.role === "RANK1" || member!.role === "RANK2";
   if (!canManage) return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), comment: null };
 
   return { error: null, comment };
