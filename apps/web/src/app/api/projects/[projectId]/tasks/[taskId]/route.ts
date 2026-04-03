@@ -7,11 +7,16 @@ import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
 
-function parseAssignees(raw: unknown): { id: string; name: string | null; email: string; image: string | null }[] {
-  if (!raw) return [];
+type Assignee = { id: string; name: string | null; email: string; image: string | null };
+
+async function fetchTaskAssignees(taskId: string): Promise<Assignee[]> {
   try {
-    const arr = typeof raw === "string" ? JSON.parse(raw) : raw;
-    return Array.isArray(arr) ? arr.map((a: any) => ({ ...a, image: a.image ?? gravatarUrl(a.email) })) : [];
+    const rows = await query<{ userId: string; name: string | null; email: string; image: string | null }>(
+      `SELECT u.id as userId, u.name, u.email, u.image
+       FROM TaskAssignee ta JOIN User u ON ta.userId = u.id WHERE ta.taskId = ?`,
+      [taskId]
+    );
+    return rows.map((r) => ({ id: r.userId, name: r.name, email: r.email, image: r.image ?? gravatarUrl(r.email) }));
   } catch { return []; }
 }
 
@@ -24,10 +29,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const row = await queryOne<Record<string, unknown>>(
-    `SELECT t.*,
-     u2.id as c_id, u2.name as c_name,
-     (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'name', u.name, 'email', u.email, 'image', u.image))
-      FROM TaskAssignee ta JOIN User u ON ta.userId = u.id WHERE ta.taskId = t.id) as assigneesJson
+    `SELECT t.*, u2.id as c_id, u2.name as c_name
      FROM Task t
      LEFT JOIN User u2 ON t.creatorId = u2.id
      WHERE t.id = ? AND t.projectId = ?`,
@@ -53,7 +55,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     ),
   ]);
 
-  const assignees = parseAssignees(row.assigneesJson);
+  const assignees = await fetchTaskAssignees(taskId);
   return NextResponse.json({
     ...row,
     assignees,
@@ -153,12 +155,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       );
     }
 
-    // Update join table
+    // Update join table — silently skip if migration not run yet
     if (resolvedIds !== null) {
-      await connExecute(conn, `DELETE FROM TaskAssignee WHERE taskId = ?`, [taskId]);
-      for (const uid of resolvedIds.slice(0, 3)) {
-        await connExecute(conn, `INSERT IGNORE INTO TaskAssignee (taskId, userId, assignedAt) VALUES (?, ?, NOW())`, [taskId, uid]);
-      }
+      try {
+        await connExecute(conn, `DELETE FROM TaskAssignee WHERE taskId = ?`, [taskId]);
+        for (const uid of resolvedIds.slice(0, 3)) {
+          await connExecute(conn, `INSERT IGNORE INTO TaskAssignee (taskId, userId, assignedAt) VALUES (?, ?, NOW())`, [taskId, uid]);
+        }
+      } catch { /* TaskAssignee table not yet created — ignore */ }
     }
   });
 
@@ -173,16 +177,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const row = await queryOne<Record<string, unknown>>(
-    `SELECT t.*,
-     (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'name', u.name, 'email', u.email, 'image', u.image))
-      FROM TaskAssignee ta JOIN User u ON ta.userId = u.id WHERE ta.taskId = t.id) as assigneesJson
-     FROM Task t WHERE t.id = ?`,
+    `SELECT t.* FROM Task t WHERE t.id = ?`,
     [taskId]
   );
 
-  const commentCount = await queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Comment WHERE taskId = ?`, [taskId]);
-  const attachmentCount = await queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Attachment WHERE taskId = ?`, [taskId]);
-  const assignees = parseAssignees(row!.assigneesJson);
+  const [commentCount, attachmentCount, assignees] = await Promise.all([
+    queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Comment WHERE taskId = ?`, [taskId]),
+    queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Attachment WHERE taskId = ?`, [taskId]),
+    fetchTaskAssignees(taskId),
+  ]);
 
   return NextResponse.json({
     ...row,
