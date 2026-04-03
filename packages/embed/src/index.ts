@@ -59,8 +59,51 @@ function getDefaultApiUrl(): string {
   return "https://punchteam.com";
 }
 
+function highlightLinkedElement() {
+  const selector = new URLSearchParams(window.location.search).get("pb_element");
+  if (!selector) return;
+  try {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (!el) return;
+
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+
+    const box = document.createElement("div");
+    box.setAttribute("data-punchbug-ignore", "true");
+    box.style.cssText =
+      "position:fixed;pointer-events:none;z-index:2147483645;" +
+      "box-shadow:0 0 0 3px #3b82f6,0 0 0 8px rgba(59,130,246,0.2);" +
+      "border-radius:3px;transition:opacity 0.4s ease";
+    document.body.appendChild(box);
+
+    function update() {
+      const r = el!.getBoundingClientRect();
+      box.style.top = r.top + "px";
+      box.style.left = r.left + "px";
+      box.style.width = r.width + "px";
+      box.style.height = r.height + "px";
+    }
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update, { passive: true });
+
+    // Fade out after 4 s
+    setTimeout(() => {
+      box.style.opacity = "0";
+      setTimeout(() => {
+        box.remove();
+        window.removeEventListener("scroll", update);
+        window.removeEventListener("resize", update);
+      }, 400);
+    }, 4000);
+  } catch {
+    // Selector may not exist on this page — silently ignore
+  }
+}
+
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("DOMContentLoaded", () => { highlightLinkedElement(); init(); });
 } else {
+  highlightLinkedElement();
   init();
 }

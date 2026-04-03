@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/hooks/use-toast";
 import { formatRelativeTime } from "@/lib/utils";
-import { X, Monitor, Globe, Maximize2, Paperclip, Archive, Trash2, Link2, ArchiveRestore, Pencil, Check } from "lucide-react";
+import { X, Monitor, Globe, Maximize2, Paperclip, Archive, Trash2, Link2, ArchiveRestore, Pencil, Check, ExternalLink } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -245,6 +245,10 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
     });
   }
 
+  const directLink = task?.pageUrl && task?.domSelector
+    ? `${task.pageUrl}${task.pageUrl.includes("?") ? "&" : "?"}pb_element=${encodeURIComponent(task.domSelector)}`
+    : null;
+
   async function submitComment(e: React.FormEvent) {
     e.preventDefault();
     if (!comment.trim()) return;
@@ -299,6 +303,13 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <span className="text-sm font-mono text-muted-foreground">#{task.taskNumber}</span>
           <div className="flex items-center gap-1">
+            {directLink && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="View element on page" asChild>
+                <a href={directLink} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copy link">
               <Link2 className="h-4 w-4" />
             </Button>
@@ -438,7 +449,13 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
               <div>
                 <p className="text-xs text-muted-foreground mb-2">Environment</p>
                 <div className="flex flex-wrap gap-2">
-                  {task.pageUrl && <Badge variant="outline" className="text-xs gap-1"><Globe className="h-3 w-3" />{task.pageUrl}</Badge>}
+                  {task.pageUrl && (
+                    <a href={directLink ?? task.pageUrl} target="_blank" rel="noopener noreferrer">
+                      <Badge variant="outline" className="text-xs gap-1 cursor-pointer hover:bg-muted transition-colors">
+                        <Globe className="h-3 w-3" />{task.pageUrl}
+                      </Badge>
+                    </a>
+                  )}
                   {task.browserName && <Badge variant="outline" className="text-xs gap-1"><Monitor className="h-3 w-3" />{task.browserName} {task.browserVersion}</Badge>}
                   {task.osName && <Badge variant="outline" className="text-xs">{task.osName} {task.osVersion}</Badge>}
                   {task.screenWidth && <Badge variant="outline" className="text-xs">{task.screenWidth}×{task.screenHeight}</Badge>}
