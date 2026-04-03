@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const limit = all ? 50 : 10;
 
   const rows = await query<Record<string, unknown>>(
-    `SELECT id, type, read, actorName, taskId, projectId, commentId, taskTitle, createdAt
+    `SELECT id, \`type\`, \`read\`, actorName, taskId, projectId, commentId, taskTitle, createdAt
      FROM Notification
      WHERE userId = ?
      ORDER BY createdAt DESC

@@ -8,7 +8,7 @@ export default async function NotificationsPage() {
   if (!session?.user?.id) return null;
 
   const rows = await query<Record<string, unknown>>(
-    `SELECT id, type, \`read\`, actorName, taskId, projectId, commentId, taskTitle, createdAt
+    `SELECT id, \`type\`, \`read\`, actorName, taskId, projectId, commentId, taskTitle, createdAt
      FROM Notification
      WHERE userId = ?
      ORDER BY createdAt DESC

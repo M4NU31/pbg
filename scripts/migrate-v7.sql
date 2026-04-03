@@ -4,8 +4,8 @@
 CREATE TABLE IF NOT EXISTS `Notification` (
   `id`        VARCHAR(191) NOT NULL,
   `userId`    VARCHAR(191) NOT NULL,
-  `type`      ENUM('TASK_ASSIGNED','MENTION') NOT NULL,
-  `read`      TINYINT(1) NOT NULL DEFAULT 0,
+  `type`      ENUM('TASK_ASSIGNED','MENTION') NOT NULL COMMENT 'notification type',
+  `read`      TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'has user seen this',
   `actorName` VARCHAR(255) NULL,
   `taskId`    VARCHAR(191) NULL,
   `projectId` VARCHAR(191) NULL,
