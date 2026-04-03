@@ -186,47 +186,49 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
 
   return (
     <>
-      <div className="flex items-center justify-between px-8 py-3 border-b bg-muted/30">
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-muted-foreground">{tasks.length} tasks</div>
+      <div className="flex items-center justify-between px-4 md:px-8 py-3 border-b bg-muted/30 gap-2">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <div className="text-sm text-muted-foreground shrink-0">{tasks.length} tasks</div>
           {archivedTasks.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-muted-foreground gap-1.5"
+              className="h-7 text-xs text-muted-foreground gap-1.5 shrink-0"
               onClick={() => setShowArchived(true)}
             >
               <Archive className="h-3.5 w-3.5" />
-              {archivedTasks.length} archived
+              <span className="hidden sm:inline">{archivedTasks.length} archived</span>
+              <span className="sm:hidden">{archivedTasks.length}</span>
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {currentUserRole !== "CLIENT" && (
             <Button size="sm" onClick={() => setCreateInColumnId(columns[0]?.id ?? null)}>
               <Plus className="h-4 w-4 mr-1" />
-              Add Task
+              <span className="hidden sm:inline">Add Task</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           )}
           {canManage && (
             <Button variant="outline" size="sm" asChild>
               <Link href={`/projects/${projectId}/settings`}>
-                <Settings className="h-4 w-4 mr-1" />
-                Settings
+                <Settings className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Settings</span>
               </Link>
             </Button>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="board" direction="horizontal" type="COLUMN">
             {(boardProvided) => (
               <div
                 ref={boardProvided.innerRef}
                 {...boardProvided.droppableProps}
-                className="flex gap-4 p-6 h-full min-w-max items-start"
+                className="flex gap-3 md:gap-4 p-3 md:p-6 h-full min-w-max items-start"
               >
                 {columns.map((col, index) => (
                   <Draggable key={col.id} draggableId={col.id} index={index} isDragDisabled={!canManage}>
@@ -234,7 +236,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
                       <div
                         ref={colProvided.innerRef}
                         {...colProvided.draggableProps}
-                        className="flex flex-col w-72 shrink-0"
+                        className="flex flex-col w-[280px] md:w-72 shrink-0"
                       >
                         <KanbanColumn
                           column={col}

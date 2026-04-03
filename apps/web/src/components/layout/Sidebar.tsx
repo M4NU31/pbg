@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { LayoutDashboard, LogOut, Moon, Sun, Archive, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, Moon, Sun, Archive, Users, X } from "lucide-react";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,9 +19,10 @@ interface SidebarProps {
   systemRole: SystemRole;
   avatarUrl?: string;
   isClient?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ user, systemRole, avatarUrl, isClient = false }: SidebarProps) {
+export function Sidebar({ user, systemRole, avatarUrl, isClient = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
@@ -31,12 +32,17 @@ export function Sidebar({ user, systemRole, avatarUrl, isClient = false }: Sideb
     ...(systemRole === "RANK1" ? [{ href: "/admin/users", icon: Users, label: "Manage Users" }] : []),
   ];
 
-
   return (
     <aside className="flex flex-col w-60 border-r bg-card h-full">
-      <div className="flex items-center gap-2 px-6 py-5 border-b">
+      <div className="flex items-center gap-2 px-4 py-5 border-b">
         <img src="/logo.svg" alt="" className="h-6 w-6" />
-        <span className="font-bold text-lg">Punch QA Tool</span>
+        <span className="font-bold text-lg flex-1">Punch QA Tool</span>
+        {/* Close button — only visible on mobile */}
+        {onClose && (
+          <Button variant="ghost" size="icon" className="h-7 w-7 md:hidden" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
@@ -44,6 +50,7 @@ export function Sidebar({ user, systemRole, avatarUrl, isClient = false }: Sideb
           <Link
             key={href}
             href={href}
+            onClick={onClose}
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
               pathname === href || pathname.startsWith(href + "/")

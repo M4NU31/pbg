@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSystemRole } from "@/lib/auth-helpers";
 import { gravatarUrl } from "@/lib/gravatar";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -19,11 +19,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isClient = !session.user.email?.endsWith("@punchteam.com");
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar user={session.user} systemRole={systemRole} avatarUrl={avatarUrl} isClient={isClient} />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
-    </div>
+    <AppShell user={session.user} systemRole={systemRole} avatarUrl={avatarUrl} isClient={isClient}>
+      {children}
+    </AppShell>
   );
 }

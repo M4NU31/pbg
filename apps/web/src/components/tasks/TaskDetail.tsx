@@ -297,7 +297,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-[620px] bg-background border-l shadow-xl z-50 flex flex-col overflow-hidden">
+      <div className="fixed inset-y-0 right-0 w-full md:w-[620px] bg-background border-l shadow-xl z-50 flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
