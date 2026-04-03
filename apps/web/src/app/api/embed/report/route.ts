@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, guestName, guestEmail, browserMeta } = body;
+  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, guestName, guestEmail, browserMeta } = body;
 
   if (!embedKey || !title || !domSelector || !pageUrl) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: CORS_HEADERS });
@@ -73,12 +73,24 @@ export async function POST(req: NextRequest) {
     );
     const num = (maxRow?.maxNum ?? 0) + 1;
 
-    const firstCol = await connQueryOne<{ id: string }>(
-      conn,
-      `SELECT id FROM BoardColumn WHERE projectId = ? ORDER BY position ASC LIMIT 1`,
-      [projectId]
-    );
-    const targetColumnId = firstCol?.id || null;
+    // Use the column chosen by the reporter, otherwise fall back to the first column
+    let targetColumnId: string | null = null;
+    if (columnId) {
+      const colRow = await connQueryOne<{ id: string }>(
+        conn,
+        `SELECT id FROM BoardColumn WHERE id = ? AND projectId = ?`,
+        [columnId, projectId]
+      );
+      targetColumnId = colRow?.id || null;
+    }
+    if (!targetColumnId) {
+      const firstCol = await connQueryOne<{ id: string }>(
+        conn,
+        `SELECT id FROM BoardColumn WHERE projectId = ? ORDER BY position ASC LIMIT 1`,
+        [projectId]
+      );
+      targetColumnId = firstCol?.id || null;
+    }
 
     await connExecute(
       conn,

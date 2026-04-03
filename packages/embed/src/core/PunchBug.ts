@@ -2,13 +2,18 @@ import { ElementPicker } from "../ui/ElementPicker";
 import { ReportForm } from "../ui/ReportForm";
 import { getDomInfo } from "../capture/domInfo";
 import { getBrowserMeta } from "../capture/browserMeta";
-import { captureScreenshot } from "../capture/screenshot";
+import { captureElement } from "../capture/screenshot";
 import { EMBED_STYLES } from "../ui/styles";
 
 export interface PunchBugConfig {
   embedKey: string;
   apiUrl: string;
   position?: "right" | "left" | "bottom-right" | "bottom-left";
+}
+
+export interface BoardColumn {
+  id: string;
+  name: string;
 }
 
 export class PunchBug {
@@ -18,6 +23,7 @@ export class PunchBug {
   private triggerBtn: HTMLButtonElement;
   private picker: ElementPicker | null = null;
   private isPicking = false;
+  private columns: BoardColumn[] = [];
 
   constructor(config: PunchBugConfig) {
     this.config = config;
@@ -39,17 +45,33 @@ export class PunchBug {
     this.triggerBtn = document.createElement("button");
     this.triggerBtn.className = "pb-trigger";
     this.triggerBtn.setAttribute("data-punchbug-ignore", "true");
-    this.triggerBtn.setAttribute("title", "Report a bug");
+    this.triggerBtn.setAttribute("title", "Report a task");
     this.triggerBtn.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path>
       </svg>
-      <span>Report Bug</span>
+      <span>Report Task</span>
     `;
 
     this.shadow.appendChild(this.triggerBtn);
     this.triggerBtn.addEventListener("click", () => this.toggle());
+
+    // Fetch columns in the background
+    this.fetchColumns();
+  }
+
+  private async fetchColumns() {
+    try {
+      const res = await fetch(
+        `${this.config.apiUrl}/api/embed/columns?key=${encodeURIComponent(this.config.embedKey)}`
+      );
+      if (res.ok) {
+        this.columns = await res.json();
+      }
+    } catch {
+      // Non-fatal — column select will just be hidden
+    }
   }
 
   private toggle() {
@@ -75,7 +97,7 @@ export class PunchBug {
   private stopPicking() {
     this.isPicking = false;
     this.triggerBtn.classList.remove("pb-active");
-    this.triggerBtn.title = "Report a bug";
+    this.triggerBtn.title = "Report a task";
     this.picker?.stop();
     this.picker = null;
   }
@@ -87,10 +109,10 @@ export class PunchBug {
     const browserMeta = getBrowserMeta();
     const pageUrl = window.location.href;
 
-    // Capture screenshot before showing form
+    // Capture screenshot of the selected element only
     let screenshot = "";
     try {
-      screenshot = await captureScreenshot("#punchbug-root");
+      screenshot = await captureElement(el);
     } catch (e) {
       console.warn("PunchBug: screenshot failed", e);
     }
@@ -102,6 +124,7 @@ export class PunchBug {
       pageUrl,
       embedKey: this.config.embedKey,
       apiUrl: this.config.apiUrl,
+      columns: this.columns,
     });
   }
 }

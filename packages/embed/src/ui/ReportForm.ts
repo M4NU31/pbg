@@ -1,5 +1,6 @@
 import { DomInfo } from "../capture/domInfo";
 import { BrowserMeta } from "../capture/browserMeta";
+import { BoardColumn } from "../core/PunchBug";
 import { submitReport } from "../api/reporter";
 
 interface FormData {
@@ -9,6 +10,7 @@ interface FormData {
   pageUrl: string;
   embedKey: string;
   apiUrl: string;
+  columns: BoardColumn[];
 }
 
 export class ReportForm {
@@ -27,13 +29,23 @@ export class ReportForm {
     const card = document.createElement("div");
     card.className = "pb-form-card";
 
+    const columnSelect =
+      data.columns.length > 0
+        ? `<div class="pb-field">
+            <label class="pb-label" for="pb-column">Add to column</label>
+            <select class="pb-input" id="pb-column">
+              ${data.columns.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
+            </select>
+           </div>`
+        : "";
+
     card.innerHTML = `
       <div class="pb-form-header">
-        <h2 class="pb-form-title">Report a Bug</h2>
+        <h2 class="pb-form-title">Report a Task</h2>
         <button class="pb-close-btn" id="pb-close">&#x2715;</button>
       </div>
 
-      ${data.screenshot ? `<img class="pb-screenshot-preview" src="${data.screenshot}" alt="Screenshot" />` : ""}
+      ${data.screenshot ? `<img class="pb-screenshot-preview" src="${data.screenshot}" alt="Element screenshot" />` : ""}
 
       <div class="pb-info-box">
         <div class="pb-info-row">
@@ -59,22 +71,13 @@ export class ReportForm {
           <label class="pb-label" for="pb-desc">More details</label>
           <textarea class="pb-textarea" id="pb-desc" placeholder="Steps to reproduce, expected vs actual behavior..."></textarea>
         </div>
-        <div class="pb-form-row">
-          <div class="pb-field">
-            <label class="pb-label" for="pb-name">Your name</label>
-            <input class="pb-input" id="pb-name" type="text" placeholder="Jane Doe" />
-          </div>
-          <div class="pb-field">
-            <label class="pb-label" for="pb-email">Your email</label>
-            <input class="pb-input" id="pb-email" type="email" placeholder="jane@example.com" />
-          </div>
-        </div>
-        <button class="pb-submit-btn" id="pb-submit">Submit Bug Report</button>
+        ${columnSelect}
+        <button class="pb-submit-btn" id="pb-submit">Submit Task</button>
       </div>
 
       <div id="pb-success" style="display:none" class="pb-success">
         <div class="pb-success-icon">&#127881;</div>
-        <div class="pb-success-title">Bug reported!</div>
+        <div class="pb-success-title">Task reported!</div>
         <p class="pb-success-text">Thanks — the team will look into it.</p>
       </div>
     `;
@@ -99,8 +102,9 @@ export class ReportForm {
       }
 
       const description = (this.shadow.getElementById("pb-desc") as HTMLTextAreaElement).value.trim();
-      const guestName = (this.shadow.getElementById("pb-name") as HTMLInputElement).value.trim();
-      const guestEmail = (this.shadow.getElementById("pb-email") as HTMLInputElement).value.trim();
+      const columnId = data.columns.length > 0
+        ? (this.shadow.getElementById("pb-column") as HTMLSelectElement).value
+        : undefined;
 
       submitBtn.disabled = true;
       submitBtn.textContent = "Submitting...";
@@ -114,8 +118,7 @@ export class ReportForm {
           domSelector: data.domInfo.selector,
           domHtml: data.domInfo.outerHtml,
           pageUrl: data.pageUrl,
-          guestName: guestName || undefined,
-          guestEmail: guestEmail || undefined,
+          columnId,
           browserMeta: data.browserMeta,
         });
 
@@ -127,7 +130,7 @@ export class ReportForm {
         setTimeout(() => this.close(), 3000);
       } catch (err) {
         submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Bug Report";
+        submitBtn.textContent = "Submit Task";
         alert("Failed to submit: " + (err instanceof Error ? err.message : "Unknown error"));
       }
     });

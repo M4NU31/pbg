@@ -52,11 +52,11 @@ function getDefaultApiUrl(): string {
     const src = (scripts[0] as HTMLScriptElement).src;
     try {
       const url = new URL(src);
-      return `${url.origin}/api/embed/report`;
+      return url.origin;
     } catch {}
   }
   // Fallback
-  return "https://punchteam.com/api/embed/report";
+  return "https://punchteam.com";
 }
 
 if (document.readyState === "loading") {

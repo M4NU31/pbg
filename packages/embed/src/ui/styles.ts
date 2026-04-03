@@ -119,7 +119,7 @@ export const EMBED_STYLES = `
     margin-bottom: 5px;
   }
 
-  .pb-input, .pb-textarea {
+  .pb-input, .pb-textarea, select.pb-input {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #d1d5db;
@@ -131,7 +131,7 @@ export const EMBED_STYLES = `
     color: #111;
   }
 
-  .pb-input:focus, .pb-textarea:focus {
+  .pb-input:focus, .pb-textarea:focus, select.pb-input:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }

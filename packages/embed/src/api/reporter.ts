@@ -6,8 +6,7 @@ export interface ReportPayload {
   domSelector: string;
   domHtml: string;
   pageUrl: string;
-  guestName?: string;
-  guestEmail?: string;
+  columnId?: string;
   browserMeta: {
     browserName: string;
     browserVersion: string;
@@ -26,7 +25,7 @@ export async function submitReport(
   apiUrl: string,
   payload: ReportPayload
 ): Promise<{ taskId: string; taskNumber: number; message: string }> {
-  const res = await fetch(apiUrl, {
+  const res = await fetch(`${apiUrl}/api/embed/report`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
