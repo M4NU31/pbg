@@ -10,9 +10,10 @@ export async function GET() {
 
   const rows = await query<Record<string, unknown>>(
     `SELECT pm.role,
-     p.id, p.name, p.description, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+     p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
      (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
      (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
+     (SELECT COUNT(*) FROM Comment c JOIN Task t ON c.taskId = t.id WHERE t.projectId = p.id) as commentCount,
      u.name as ownerName, u.image as ownerImage
      FROM ProjectMember pm
      JOIN Project p ON pm.projectId = p.id
@@ -27,12 +28,13 @@ export async function GET() {
       id: row.id,
       name: row.name,
       description: row.description,
+      siteUrl: row.siteUrl,
       embedKey: row.embedKey,
       allowedDomains: parseJson(row.allowedDomains),
       ownerId: row.ownerId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      _count: { tasks: Number(row.taskCount), members: Number(row.memberCount) },
+      _count: { tasks: Number(row.taskCount), members: Number(row.memberCount), comments: Number(row.commentCount) },
       owner: { name: row.ownerName, image: row.ownerImage },
       role: row.role,
     }))
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, description } = body;
+  const { name, description, siteUrl } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Project name is required" }, { status: 400 });
@@ -65,9 +67,9 @@ export async function POST(req: NextRequest) {
   await withTransaction(async (conn) => {
     await connExecute(
       conn,
-      `INSERT INTO Project (id, name, description, embedKey, allowedDomains, ownerId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, '[]', ?, NOW(), NOW())`,
-      [projectId, name.trim(), description?.trim() || null, embedKey, userId]
+      `INSERT INTO Project (id, name, description, siteUrl, embedKey, allowedDomains, ownerId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, '[]', ?, NOW(), NOW())`,
+      [projectId, name.trim(), description?.trim() || null, siteUrl?.trim() || null, embedKey, userId]
     );
     await connExecute(
       conn,
