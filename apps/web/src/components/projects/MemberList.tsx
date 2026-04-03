@@ -193,6 +193,7 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
       if (!res.ok) throw new Error();
       toast({ title: "Client access revoked" });
       mutateClients();
+      router.refresh();
     } catch {
       toast({ title: "Failed to revoke access", variant: "destructive" });
     } finally {
