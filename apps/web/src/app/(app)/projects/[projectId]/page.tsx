@@ -21,13 +21,13 @@ export default async function ProjectPage({
   const memberRow = isAdmin
     ? await queryOne<Record<string, unknown>>(
         `SELECT NULL as id, 'ADMIN' as role,
-         p.id as p_id, p.name as p_name, p.description as p_description
+         p.id as p_id, p.name as p_name, p.description as p_description, p.ownerId as p_ownerId
          FROM Project p WHERE p.id = ?`,
         [projectId]
       )
     : await queryOne<Record<string, unknown>>(
         `SELECT pm.id, pm.role,
-         p.id as p_id, p.name as p_name, p.description as p_description
+         p.id as p_id, p.name as p_name, p.description as p_description, p.ownerId as p_ownerId
          FROM ProjectMember pm JOIN Project p ON pm.projectId = p.id
          WHERE pm.projectId = ? AND pm.userId = ?`,
         [projectId, session.user.id]
@@ -47,25 +47,33 @@ export default async function ProjectPage({
     id: memberRow.p_id as string,
     name: memberRow.p_name as string,
     description: (memberRow.p_description as string | null) ?? null,
+    ownerId: memberRow.p_ownerId as string,
   };
 
-  const members = memberRows.map((u) => ({
-    id: u.u_id as string,
-    name: (u.u_name as string | null) ?? null,
-    email: u.u_email as string,
-    image: (u.u_image as string | null) ?? gravatarUrl(u.u_email as string),
-  }));
+  const members = memberRows
+    .filter((u) => (u.u_email as string).endsWith("@punchteam.com"))
+    .map((u) => ({
+      id: u.u_id as string,
+      name: (u.u_name as string | null) ?? null,
+      email: u.u_email as string,
+      image: (u.u_image as string | null) ?? gravatarUrl(u.u_email as string),
+    }));
 
-  const allMembers = memberRows.map((row) => ({
-    id: row.id as string,
-    role: row.role as string,
-    user: {
-      id: row.u_id as string,
-      name: (row.u_name as string | null) ?? null,
-      email: row.u_email as string,
-      image: (row.u_image as string | null) ?? gravatarUrl(row.u_email as string),
-    },
-  }));
+  const allMembers = memberRows.map((row) => {
+    const email = row.u_email as string;
+    // Normalize: external (non-punchteam) emails are always CLIENT regardless of DB value
+    const effectiveRole = !email.endsWith("@punchteam.com") ? "CLIENT" : (row.role as string);
+    return {
+      id: row.id as string,
+      role: effectiveRole,
+      user: {
+        id: row.u_id as string,
+        name: (row.u_name as string | null) ?? null,
+        email,
+        image: (row.u_image as string | null) ?? gravatarUrl(email),
+      },
+    };
+  });
 
   return (
     <div className="flex flex-col h-full">
@@ -74,6 +82,7 @@ export default async function ProjectPage({
           projectId={project.id}
           projectName={project.name}
           projectDescription={project.description}
+          projectOwnerId={project.ownerId}
           members={members}
           allMembers={allMembers}
           currentUserId={session.user.id}

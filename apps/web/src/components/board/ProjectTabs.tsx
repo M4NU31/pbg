@@ -25,6 +25,7 @@ interface ProjectTabsProps {
   projectId: string;
   projectName: string;
   projectDescription: string | null;
+  projectOwnerId: string;
   members: User[];
   allMembers: Member[];
   currentUserId: string;
@@ -43,6 +44,7 @@ export function ProjectTabs({
   projectId,
   projectName,
   projectDescription,
+  projectOwnerId,
   members,
   allMembers,
   currentUserId,
@@ -120,6 +122,7 @@ export function ProjectTabs({
           <div className="flex-1 overflow-y-auto">
             <MembersTabView
               projectId={projectId}
+              projectOwnerId={projectOwnerId}
               allMembers={allMembers}
               currentUserId={currentUserId}
               currentUserRole={currentUserRole}
@@ -131,6 +134,7 @@ export function ProjectTabs({
           <div className="flex-1 overflow-y-auto">
             <MembersTabView
               projectId={projectId}
+              projectOwnerId={projectOwnerId}
               allMembers={allMembers}
               currentUserId={currentUserId}
               currentUserRole={currentUserRole}

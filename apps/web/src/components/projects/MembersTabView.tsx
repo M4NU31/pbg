@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/hooks/use-toast";
-import { UserPlus, Trash2, CheckCircle2, Clock } from "lucide-react";
+import { UserPlus, Trash2, CheckCircle2, Clock, Crown } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -33,16 +33,18 @@ interface ClientInvitation {
 
 interface MembersTabViewProps {
   projectId: string;
+  projectOwnerId: string;
   allMembers: Member[];
   currentUserId: string;
   currentUserRole: string;
   filter: "team" | "clients";
 }
 
-export function MembersTabView({ projectId, allMembers, currentUserId, currentUserRole, filter }: MembersTabViewProps) {
+export function MembersTabView({ projectId, projectOwnerId, allMembers, currentUserId, currentUserRole, filter }: MembersTabViewProps) {
   const router = useRouter();
   const canManage = currentUserRole === "ADMIN" || currentUserRole === "PROJECT_MANAGER";
   const canManageClients = canManage;
+  const isAdmin = currentUserRole === "ADMIN";
 
   const teamMembers = allMembers.filter((m) => m.role !== "CLIENT");
   const clientMembers = allMembers.filter((m) => m.role === "CLIENT");
@@ -53,6 +55,7 @@ export function MembersTabView({ projectId, allMembers, currentUserId, currentUs
   const [suggestions, setSuggestions] = useState<SearchUser[]>([]);
   const [showSugg, setShowSugg] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
+  const [transferTarget, setTransferTarget] = useState<Member | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -119,6 +122,26 @@ export function MembersTabView({ projectId, allMembers, currentUserId, currentUs
     } finally {
       setActionLoading(false);
       setRemoveTarget(null);
+    }
+  }
+
+  async function transferOwnership() {
+    if (!transferTarget) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newOwnerId: transferTarget.user.id }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Ownership transferred", description: `${transferTarget.user.name ?? transferTarget.user.email} is now the project owner.` });
+      router.refresh();
+    } catch {
+      toast({ title: "Failed to transfer ownership", variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+      setTransferTarget(null);
     }
   }
 
@@ -216,25 +239,39 @@ export function MembersTabView({ projectId, allMembers, currentUserId, currentUs
         )}
 
         <div className="space-y-2">
-          {teamMembers.map((m) => (
-            <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
-              <UserAvatar name={m.user.name} email={m.user.email} image={m.user.image} className="h-8 w-8 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{m.user.name ?? m.user.email}</p>
-                <p className="text-xs text-muted-foreground truncate">{m.user.email}</p>
+          {teamMembers.map((m) => {
+            const isOwner = m.user.id === projectOwnerId;
+            return (
+              <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+                <UserAvatar name={m.user.name} email={m.user.email} image={m.user.image} className="h-8 w-8 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{m.user.name ?? m.user.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{m.user.email}</p>
+                </div>
+                {isOwner && (
+                  <Badge variant="secondary" className="text-xs shrink-0">Owner</Badge>
+                )}
+                {isAdmin && !isOwner && m.user.id !== currentUserId && (
+                  <Button
+                    variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-yellow-500 shrink-0"
+                    onClick={() => setTransferTarget(m)}
+                    title="Make project owner"
+                  >
+                    <Crown className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {canManage && m.user.id !== currentUserId && (
+                  <Button
+                    variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
+                    onClick={() => setRemoveTarget(m)}
+                    title="Remove member"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
-              <Badge variant="secondary" className="text-xs shrink-0">{ROLE_LABELS[m.role] ?? m.role}</Badge>
-              {canManage && m.user.id !== currentUserId && (
-                <Button
-                  variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
-                  onClick={() => setRemoveTarget(m)}
-                  title="Remove member"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {removeTarget && (
@@ -247,6 +284,18 @@ export function MembersTabView({ projectId, allMembers, currentUserId, currentUs
             variant="danger"
             loading={actionLoading}
             onConfirm={removeMember}
+          />
+        )}
+        {transferTarget && (
+          <ConfirmDialog
+            open
+            onOpenChange={(o) => !o && setTransferTarget(null)}
+            title="Transfer project ownership?"
+            description={`${transferTarget.user.name ?? transferTarget.user.email} will become the new project owner.`}
+            confirmLabel="Transfer ownership"
+            variant="warning"
+            loading={actionLoading}
+            onConfirm={transferOwnership}
           />
         )}
       </div>
