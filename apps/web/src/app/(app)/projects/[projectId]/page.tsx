@@ -36,7 +36,7 @@ export default async function ProjectPage({
   if (!memberRow) notFound();
 
   const memberRows = await query<Record<string, unknown>>(
-    `SELECT pm.id, pm.role, u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image
+    `SELECT pm.id, pm.role, u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image, u.systemRole as u_systemRole
      FROM ProjectMember pm JOIN User u ON pm.userId = u.id
      WHERE pm.projectId = ?
      ORDER BY pm.joinedAt ASC`,
@@ -59,8 +59,8 @@ export default async function ProjectPage({
       image: (u.u_image as string | null) ?? gravatarUrl(u.u_email as string),
     }));
 
-  const PROJECT_ROLE_MAP: Record<string, string> = {
-    OWNER: "PROJECT_MANAGER", RANK1: "ADMIN", RANK2: "PROJECT_MANAGER", RANK3: "MEMBER",
+  const ROLE_NORM: Record<string, string> = {
+    RANK1: "ADMIN", RANK2: "PROJECT_MANAGER", RANK3: "MEMBER", OWNER: "PROJECT_MANAGER",
   };
 
   const allMembers = memberRows.map((row) => {
@@ -69,8 +69,11 @@ export default async function ProjectPage({
     if (!email.endsWith("@punchteam.com")) {
       effectiveRole = "CLIENT";
     } else {
-      const raw = row.role as string;
-      effectiveRole = PROJECT_ROLE_MAP[raw] ?? raw;
+      // Use system role (source of truth) to determine eligibility for ownership
+      const sysRaw = row.u_systemRole as string | null;
+      const sysRole = sysRaw ? (ROLE_NORM[sysRaw] ?? sysRaw) : "MEMBER";
+      // Bootstrap admin always ADMIN
+      effectiveRole = email === "manuel@punchteam.com" ? "ADMIN" : sysRole;
     }
     return {
       id: row.id as string,
