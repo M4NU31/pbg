@@ -394,7 +394,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
                 <label className="text-xs text-muted-foreground mb-1 block">Assignees</label>
                 <AssigneeSelect
                   members={members}
-                  selectedIds={(task.assignees ?? (task.assigneeId ? [{ id: task.assigneeId }] : [])).map((a: any) => a.id)}
+                  selectedIds={(task.assignees?.length ? task.assignees : task.assigneeId ? [{ id: task.assigneeId }] : []).map((a: any) => a.id)}
                   onChange={(ids) => updateTask({ assigneeIds: ids })}
                   size="sm"
                 />

@@ -20,6 +20,19 @@ async function fetchTaskAssignees(taskId: string): Promise<Assignee[]> {
   } catch { return []; }
 }
 
+/** If TaskAssignee table doesn't exist yet, fall back to legacy assigneeId column */
+async function resolveAssignees(taskId: string, legacyAssigneeId: string | null | undefined): Promise<Assignee[]> {
+  const fromTable = await fetchTaskAssignees(taskId);
+  if (fromTable.length > 0) return fromTable;
+  if (!legacyAssigneeId) return [];
+  try {
+    const u = await queryOne<{ id: string; name: string | null; email: string; image: string | null }>(
+      `SELECT id, name, email, image FROM User WHERE id = ?`, [legacyAssigneeId]
+    );
+    return u ? [{ id: u.id, name: u.name, email: u.email, image: u.image ?? gravatarUrl(u.email) }] : [];
+  } catch { return []; }
+}
+
 export async function GET(_req: NextRequest, { params }: Params) {
   const { projectId, taskId } = await params;
   const { error, session } = await requireAuth();
@@ -55,7 +68,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     ),
   ]);
 
-  const assignees = await fetchTaskAssignees(taskId);
+  const assignees = await resolveAssignees(taskId, row.assigneeId as string | null);
   return NextResponse.json({
     ...row,
     assignees,
@@ -184,7 +197,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const [commentCount, attachmentCount, assignees] = await Promise.all([
     queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Comment WHERE taskId = ?`, [taskId]),
     queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Attachment WHERE taskId = ?`, [taskId]),
-    fetchTaskAssignees(taskId),
+    resolveAssignees(taskId, row!.assigneeId as string | null),
   ]);
 
   return NextResponse.json({
