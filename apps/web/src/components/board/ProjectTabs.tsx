@@ -72,7 +72,7 @@ export function ProjectTabs({
           )}
         </div>
         {/* Tab bar */}
-        <div className="flex items-center gap-0 overflow-x-auto">
+        <div className="flex items-center gap-0">
           {TABS.map((tab) => (
             <button
               key={tab.id}

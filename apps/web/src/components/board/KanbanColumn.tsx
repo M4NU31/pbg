@@ -75,7 +75,7 @@ export function KanbanColumn({
   const colorClass = COLUMN_COLORS[column.position % COLUMN_COLORS.length];
 
   return (
-    <div className="flex flex-col w-72 shrink-0">
+    <div className="flex flex-col w-72 shrink-0 h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 group">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -151,7 +151,7 @@ export function KanbanColumn({
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={cn(
-              "flex-1 rounded-lg p-2 min-h-[400px] transition-colors",
+              "flex-1 overflow-y-auto rounded-lg p-2 transition-colors",
               colorClass,
               snapshot.isDraggingOver && "ring-2 ring-primary/30"
             )}

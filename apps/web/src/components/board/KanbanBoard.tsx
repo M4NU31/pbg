@@ -209,7 +209,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
               <div
                 ref={boardProvided.innerRef}
                 {...boardProvided.droppableProps}
-                className="flex gap-3 md:gap-4 p-3 md:p-6 h-full min-w-max items-start"
+                className="flex gap-3 md:gap-4 p-3 md:p-6 h-full min-w-max items-stretch"
               >
                 {columns.map((col, index) => (
                   <Draggable key={col.id} draggableId={col.id} index={index} isDragDisabled={!canManage}>
@@ -217,7 +217,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
                       <div
                         ref={colProvided.innerRef}
                         {...colProvided.draggableProps}
-                        className="flex flex-col w-[280px] md:w-72 shrink-0"
+                        className="flex flex-col w-[280px] md:w-72 shrink-0 h-full"
                       >
                         <KanbanColumn
                           column={col}
