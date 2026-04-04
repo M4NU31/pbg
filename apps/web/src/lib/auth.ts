@@ -92,7 +92,7 @@ export const authOptions: NextAuthOptions = {
         if (email.endsWith(`@${ALLOWED_DOMAIN}`)) {
           // Ensure internal users have a systemRole written to DB (default MEMBER)
           await execute(
-            `UPDATE User SET systemRole = COALESCE(NULLIF(systemRole, ''), 'MEMBER') WHERE id = ? AND (systemRole IS NULL OR systemRole = '')`,
+            `UPDATE User SET systemRole = 'MEMBER' WHERE id = ? AND (systemRole IS NULL OR systemRole = '' OR systemRole NOT IN ('ADMIN','PROJECT_MANAGER','MEMBER'))`,
             [user.id]
           ).catch(() => {});
         } else {
