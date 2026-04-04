@@ -53,7 +53,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
     { refreshInterval: 30000 }
   );
 
-  const { data: archivedTasks = [] } = useSWR<any[]>(
+  const { data: archivedTasks = [], mutate: mutateArchived } = useSWR<any[]>(
     `/api/projects/${projectId}/tasks?archived=true`,
     fetcher
   );
@@ -303,7 +303,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
           onClose={closeTask}
-          onUpdate={() => { mutateTasks(); }}
+          onUpdate={() => { mutateTasks(); mutateArchived(); }}
         />
       )}
 
