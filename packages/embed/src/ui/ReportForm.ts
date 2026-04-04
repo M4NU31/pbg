@@ -17,6 +17,7 @@ interface FormData {
   tags: EmbedTag[];
   reporterName?: string;
   onSuccess?: () => void;
+  onClose?: () => void;
 }
 
 export class ReportForm {
@@ -123,8 +124,8 @@ export class ReportForm {
     this.shadow.appendChild(overlay);
 
     // Close handlers
-    this.shadow.getElementById("pb-close")?.addEventListener("click", () => this.close());
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) this.close(); });
+    this.shadow.getElementById("pb-close")?.addEventListener("click", () => this.close(data.onClose));
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) this.close(data.onClose); });
 
     // Screenshot expand button → open lightbox with full screenshot
     if (data.screenshotFull) {
@@ -218,7 +219,8 @@ export class ReportForm {
     this.shadow.appendChild(lb);
   }
 
-  close() {
+  close(onClose?: () => void) {
     this.overlay.remove();
+    onClose?.();
   }
 }

@@ -1,8 +1,12 @@
 export interface PickResult {
   el: HTMLElement;
-  /** Page X coordinate of the click (pageX = clientX + scrollX) */
+  /** Viewport X of the click — used for screenshot crop and pin display */
+  clientX: number;
+  /** Viewport Y of the click — used for screenshot crop and pin display */
+  clientY: number;
+  /** Absolute page X = clientX + scrollX — stored as pinX in DB */
   pageX: number;
-  /** Page Y coordinate of the click (pageY = clientY + scrollY) */
+  /** Absolute page Y = clientY + scrollY — stored as pinY in DB */
   pageY: number;
 }
 
@@ -45,8 +49,7 @@ export class ElementPicker {
 
     const rect = el.getBoundingClientRect();
 
-    // Use a fixed-position, pointer-events:none overlay so the host page layout
-    // is never affected (no outline/border is set on the target element itself).
+    // Fixed-position overlay — zero layout impact on the host page.
     const overlay = document.createElement("div");
     overlay.id = "pb-highlight-overlay";
     overlay.setAttribute("data-punchbug-ignore", "true");
@@ -61,7 +64,7 @@ export class ElementPicker {
       "outline:2px solid hsl(348,100%,52%)",
       "outline-offset:2px",
       "border-radius:2px",
-      "background:hsla(348,100%,52%,0.06)",
+      "background:hsla(348,100%,52%,0.07)",
       "box-sizing:border-box",
     ].join(";");
 
@@ -97,6 +100,8 @@ export class ElementPicker {
       this.stop();
       this.onPick({
         el,
+        clientX: e.clientX,
+        clientY: e.clientY,
         pageX: e.clientX + window.scrollX,
         pageY: e.clientY + window.scrollY,
       });

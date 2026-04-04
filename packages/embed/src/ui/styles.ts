@@ -272,6 +272,8 @@ export const EMBED_STYLES = `
     cursor: crosshair !important;
   }
 
+  /* Ghost pin drop animation (runs outside shadow DOM, injected via <style> in <head>) */
+
   /* Tags */
   .pb-tags-grid {
     display: flex;

@@ -1,20 +1,40 @@
 import { toPng } from "html-to-image";
 
 export interface CaptureResult {
-  /** Full viewport screenshot as base64 PNG — this is what gets uploaded. */
+  /** Full viewport/page screenshot as base64 PNG — stored on server. */
   full: string;
-  /** Thumbnail cropped to element area + context padding — shown in the form preview. */
+  /** Thumbnail cropped around the click position — shown in form preview. */
   thumb: string;
 }
 
-const CONTEXT_PADDING = 140; // px of context around element in the thumbnail
+// px of context around the click point in the thumbnail
+const THUMB_HALF_W = 220;
+const THUMB_HALF_H = 160;
 
-export async function captureViewport(el: HTMLElement): Promise<CaptureResult> {
-  // Scroll element to center of viewport before capturing
-  el.scrollIntoView({ block: "center", inline: "center" });
-  await new Promise<void>((r) => setTimeout(r, 220));
+/**
+ * Capture what the user was looking at when they clicked.
+ *
+ * @param clientX  Viewport X of the click (e.clientX)
+ * @param clientY  Viewport Y of the click (e.clientY)
+ *
+ * Strategy:
+ *  1. Do NOT scroll — the screenshot shows exactly what the user saw at click time.
+ *  2. html-to-image captures document.documentElement.
+ *     The resulting image may be either full-page (scrollWidth × scrollHeight)
+ *     or viewport-sized (innerWidth × innerHeight) depending on the browser/library version.
+ *     We detect which by comparing img.naturalHeight to window.innerHeight.
+ *  3. Convert the click's viewport coordinates to image coordinates, then crop.
+ */
+export async function captureClick(
+  clientX: number,
+  clientY: number
+): Promise<CaptureResult> {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
 
-  // Capture the full visible document at 1x (pixelRatio:1 keeps it fast)
+  // Small delay so any synchronous DOM mutations (pin overlay etc.) settle.
+  await new Promise<void>((r) => setTimeout(r, 80));
+
   let full: string;
   try {
     full = await toPng(document.documentElement, {
@@ -26,59 +46,48 @@ export async function captureViewport(el: HTMLElement): Promise<CaptureResult> {
         node.id !== "punchbug-root",
     });
   } catch {
-    // Fallback: capture just the element if full-page fails (e.g. cross-origin resources)
-    full = await toPng(el, {
-      cacheBust: true,
-      pixelRatio: 1,
-      skipFonts: false,
-      filter: (node) =>
-        !node.hasAttribute?.("data-punchbug-ignore") &&
-        node.id !== "punchbug-root",
-    });
-    return { full, thumb: full };
+    return { full: "", thumb: "" };
   }
-
-  // Compute element position in viewport (after scrollIntoView)
-  const rect = el.getBoundingClientRect();
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
-  // Crop bounds for the thumbnail (element + context padding, clamped to viewport)
-  const cx = Math.max(0, rect.left - CONTEXT_PADDING);
-  const cy = Math.max(0, rect.top - CONTEXT_PADDING);
-  const cw = Math.min(vw - cx, rect.width + CONTEXT_PADDING * 2);
-  const ch = Math.min(vh - cy, rect.height + CONTEXT_PADDING * 2);
 
   try {
     const img = await loadImage(full);
-    // html-to-image renders document.documentElement; its natural size maps to page dimensions.
-    // After scrollIntoView the viewport sits at (scrollX, scrollY) within the full document.
+
+    // ------------------------------------------------------------------
+    // Detect whether html-to-image captured the full document or just
+    // the visible viewport, then convert click → image coordinates.
+    // ------------------------------------------------------------------
     const docW = document.documentElement.scrollWidth;
     const docH = document.documentElement.scrollHeight;
-    const scaleX = img.naturalWidth / docW;
-    const scaleY = img.naturalHeight / docH;
+    const isFullPage = img.naturalHeight > vh * 1.2;
 
-    const sx = window.scrollX;
-    const sy = window.scrollY;
+    let imgClickX: number;
+    let imgClickY: number;
+
+    if (isFullPage) {
+      // Full page: position in image = (scrollX + clientX, scrollY + clientY) * scale
+      const scaleX = img.naturalWidth / docW;
+      const scaleY = img.naturalHeight / docH;
+      imgClickX = (window.scrollX + clientX) * scaleX;
+      imgClickY = (window.scrollY + clientY) * scaleY;
+    } else {
+      // Viewport only: position in image = click fraction × image dimensions
+      imgClickX = (clientX / vw) * img.naturalWidth;
+      imgClickY = (clientY / vh) * img.naturalHeight;
+    }
+
+    // Crop a rectangle centred on the click point
+    const srcX = Math.max(0, Math.round(imgClickX - THUMB_HALF_W));
+    const srcY = Math.max(0, Math.round(imgClickY - THUMB_HALF_H));
+    const srcW = Math.min(img.naturalWidth - srcX, THUMB_HALF_W * 2);
+    const srcH = Math.min(img.naturalHeight - srcY, THUMB_HALF_H * 2);
 
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(cw);
-    canvas.height = Math.round(ch);
+    canvas.width = srcW;
+    canvas.height = srcH;
     const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
 
-    ctx.drawImage(
-      img,
-      Math.round((sx + cx) * scaleX),
-      Math.round((sy + cy) * scaleY),
-      Math.round(cw * scaleX),
-      Math.round(ch * scaleY),
-      0, 0,
-      Math.round(cw),
-      Math.round(ch)
-    );
-
-    const thumb = canvas.toDataURL("image/png");
-    return { full, thumb };
+    return { full, thumb: canvas.toDataURL("image/png") };
   } catch {
     return { full, thumb: full };
   }
