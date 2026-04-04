@@ -6,6 +6,20 @@ import { gravatarUrl } from "@/lib/gravatar";
 import { notFound } from "next/navigation";
 import { UserRoleManager } from "@/components/admin/UserRoleManager";
 
+/** Normalize legacy role values to the new role system */
+const ROLE_MIGRATION: Record<string, string> = {
+  RANK1: "ADMIN",
+  RANK2: "PROJECT_MANAGER",
+  RANK3: "MEMBER",
+};
+
+function normalizeRole(role: string | null | undefined): string {
+  if (!role) return "MEMBER";
+  return ROLE_MIGRATION[role] ?? role;
+}
+
+const BOOTSTRAP_ADMIN_EMAIL = "manuel@punchteam.com";
+
 export default async function AdminUsersPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
@@ -32,6 +46,10 @@ export default async function AdminUsersPage() {
         users={(users as any[]).map((u) => ({
           ...u,
           image: (u.image as string | null) ?? gravatarUrl(u.email as string),
+          // Bootstrap admin is always ADMIN; normalize all legacy RANK values
+          systemRole: u.email === BOOTSTRAP_ADMIN_EMAIL
+            ? "ADMIN"
+            : normalizeRole(u.systemRole as string | null),
         }))}
         currentUserId={session.user.id}
       />
