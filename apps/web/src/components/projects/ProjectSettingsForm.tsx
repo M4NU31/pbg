@@ -12,7 +12,7 @@ interface Project {
   id: string;
   name: string;
   description: string | null;
-  allowedDomains: unknown; // Json in MySQL, cast to string[]
+  siteUrl: string | null;
 }
 
 export function ProjectSettingsForm({ project }: { project: Project }) {
@@ -20,23 +20,16 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? "");
-  const [allowedDomains, setAllowedDomains] = useState(
-    ((project.allowedDomains as string[]) ?? []).join(", ")
-  );
+  const [siteUrl, setSiteUrl] = useState(project.siteUrl ?? "");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      const domains = allowedDomains
-        .split(",")
-        .map((d) => d.trim())
-        .filter(Boolean);
-
       const res = await fetch(`/api/projects/${project.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, allowedDomains: domains }),
+        body: JSON.stringify({ name, description, siteUrl: siteUrl.trim() || null }),
       });
 
       if (!res.ok) throw new Error("Failed to update project");
@@ -63,15 +56,16 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
           <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="domains">Allowed Domains (optional)</Label>
+          <Label htmlFor="siteUrl">Site URL</Label>
           <Input
-            id="domains"
-            placeholder="example.com, staging.example.com"
-            value={allowedDomains}
-            onChange={(e) => setAllowedDomains(e.target.value)}
+            id="siteUrl"
+            type="url"
+            placeholder="https://yoursite.com"
+            value={siteUrl}
+            onChange={(e) => setSiteUrl(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Comma-separated. If set, only these domains can submit bug reports via the embed script.
+            Used to capture a preview screenshot of your site on the dashboard.
           </p>
         </div>
         <Button type="submit" disabled={loading}>
