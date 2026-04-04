@@ -123,14 +123,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   );
   if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
-  if (member!.role === "CLIENT") {
-    const isMoveOnly = columnId !== undefined &&
-      title === undefined && description === undefined &&
-      priority === undefined && assigneeIds === undefined &&
-      archive === undefined && status === undefined;
-    if (!isMoveOnly) {
-      const userId = session!.user.id;
-      if (existing.creatorId !== userId && existing.assigneeId !== userId) {
+  // Member and Client can only move tasks or edit their OWN tasks — cannot archive/delete
+  if (member!.role === "MEMBER" || member!.role === "CLIENT") {
+    const userId = session!.user.id;
+    if (archive !== undefined) {
+      return NextResponse.json({ error: "Members and clients cannot archive tasks" }, { status: 403 });
+    }
+    // Allow editing only if they created or are assigned to this task
+    const isEditing = title !== undefined || description !== undefined || priority !== undefined || assigneeIds !== undefined;
+    if (isEditing) {
+      const isAssigned = await queryOne<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM TaskAssignee WHERE taskId = ? AND userId = ?`, [taskId, userId]
+      ).catch(() => null);
+      if (existing.creatorId !== userId && existing.assigneeId !== userId && !isAssigned?.cnt) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -244,21 +249,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
-  if (member!.role === "VIEWER" || member!.role === "MEMBER") {
+  // Only Admin and Project Manager can delete tasks
+  if (member!.role === "MEMBER" || member!.role === "CLIENT") {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-  }
-
-  if (member!.role === "CLIENT") {
-    const task = await queryOne<{ creatorId: string | null; assigneeId: string | null }>(
-      `SELECT creatorId, assigneeId FROM Task WHERE id = ? AND projectId = ?`, [taskId, projectId]
-    );
-    const userId = session!.user.id;
-    const isAssigned = await queryOne<{ cnt: number }>(
-      `SELECT COUNT(*) as cnt FROM TaskAssignee WHERE taskId = ? AND userId = ?`, [taskId, userId]
-    );
-    if (!task || (task.creatorId !== userId && !isAssigned?.cnt)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
   }
 
   await execute(`DELETE FROM Task WHERE id = ? AND projectId = ?`, [taskId, projectId]);

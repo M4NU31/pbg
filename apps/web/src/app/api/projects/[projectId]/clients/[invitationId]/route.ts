@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne, execute } from "@/lib/db";
-import { requireAuth, requireProjectAccess, getSystemRole } from "@/lib/auth-helpers";
+import { requireAuth, requireProjectAccess, canManageProject } from "@/lib/auth-helpers";
 
 type Params = { params: Promise<{ projectId: string; invitationId: string }> };
 
@@ -12,13 +12,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
-  const role = member!.role;
-  let allowed = role === "OWNER" || role === "ADMIN" || role === "RANK1";
-  if (!allowed) {
-    const systemRole = await getSystemRole(session!.user.id, session!.user.email);
-    allowed = systemRole === "RANK2";
-  }
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canManageProject(member!.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const inv = await queryOne<{ email: string }>(
     `SELECT email FROM ClientInvitation WHERE id = ? AND projectId = ?`,

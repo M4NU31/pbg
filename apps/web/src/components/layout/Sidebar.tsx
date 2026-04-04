@@ -29,7 +29,7 @@ export function Sidebar({ user, systemRole, avatarUrl, isClient = false, onClose
   const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     ...(!isClient ? [{ href: "/archived", icon: Archive, label: "Archived Projects" }] : []),
-    ...(systemRole === "RANK1" ? [{ href: "/admin/users", icon: Users, label: "Manage Users" }] : []),
+    ...(systemRole === "ADMIN" ? [{ href: "/admin/users", icon: Users, label: "Manage Users" }] : []),
   ];
 
   return (

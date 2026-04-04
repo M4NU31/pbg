@@ -49,7 +49,7 @@ export default async function ProjectSettingsPage({
     siteUrl: (memberRow.p_siteUrl as string | null) ?? null,
   };
 
-  const isAdmin = memberRow.role === "OWNER" || memberRow.role === "ADMIN";
+  const isAdmin = memberRow.role === "ADMIN" || memberRow.role === "PROJECT_MANAGER";
   const embedUrl = `${process.env.NEXT_PUBLIC_APP_URL}/embed/punchbug.js`;
 
   return (

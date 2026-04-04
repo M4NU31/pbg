@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (error) return error;
   const { error: ae, member } = await requireProjectAccess(session!.user.id, projectId);
   if (ae) return ae;
-  if (member!.role !== "OWNER" && member!.role !== "ADMIN" && member!.role !== "RANK1") {
+  if (member!.role !== "ADMIN" && member!.role !== "PROJECT_MANAGER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

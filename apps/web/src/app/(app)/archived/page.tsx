@@ -13,10 +13,10 @@ export default async function ArchivedPage() {
   if (!session.user.email?.endsWith("@punchteam.com")) redirect("/dashboard");
 
   const systemRole = await getSystemRole(session.user.id, session.user.email);
-  const isRank1 = systemRole === "RANK1";
+  const isAdmin = systemRole === "ADMIN";
 
   const rows = await query<Record<string, unknown>>(
-    isRank1
+    isAdmin
       ? `SELECT p.id, p.name, p.description, p.ownerId, p.archivedAt,
          (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
          u.name as ownerName
@@ -32,7 +32,7 @@ export default async function ArchivedPage() {
          JOIN User u ON p.ownerId = u.id
          WHERE pm.userId = ? AND p.archivedAt IS NOT NULL
          ORDER BY p.archivedAt DESC`,
-    isRank1 ? [] : [session.user.id]
+    isAdmin ? [] : [session.user.id]
   );
 
   const projects = rows.map((row) => ({

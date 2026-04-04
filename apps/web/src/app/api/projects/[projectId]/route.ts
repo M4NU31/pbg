@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute, queryOne, parseJson } from "@/lib/db";
-import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
+import { requireAuth, requireProjectAccess, canManageProject } from "@/lib/auth-helpers";
 import { deleteScreenshot } from "@/lib/screenshot";
 
 type Params = { params: Promise<{ projectId: string }> };
@@ -30,18 +30,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role === "MEMBER" || member!.role === "VIEWER" || member!.role === "RANK3") {
+  if (!canManageProject(member!.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
-  const { name, description, allowedDomains } = body;
+  const { name, description, siteUrl, allowedDomains } = body;
 
   const setParts: string[] = [];
   const vals: unknown[] = [];
 
   if (name) { setParts.push("name = ?"); vals.push(name.trim()); }
   if (description !== undefined) { setParts.push("description = ?"); vals.push(description?.trim() || null); }
+  if (siteUrl !== undefined) { setParts.push("siteUrl = ?"); vals.push(siteUrl?.trim() || null); }
   if (allowedDomains !== undefined) { setParts.push("allowedDomains = ?"); vals.push(JSON.stringify(allowedDomains)); }
   setParts.push("updatedAt = NOW()");
   vals.push(projectId);
@@ -67,8 +68,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER" && member!.role !== "RANK1") {
-    return NextResponse.json({ error: "Only the owner can delete a project" }, { status: 403 });
+  // Only system Admin can delete projects — Project Managers cannot
+  if (member!.role !== "ADMIN") {
+    return NextResponse.json({ error: "Only an Admin can delete projects" }, { status: 403 });
   }
 
   await execute(`DELETE FROM Project WHERE id = ?`, [projectId]);

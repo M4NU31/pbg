@@ -352,7 +352,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={copyLink} title="Copy link">
               <Link2 className="h-4 w-4" />
             </Button>
-            {(currentUserRole !== "CLIENT" || task.creatorId === currentUserId || task.assigneeId === currentUserId) && (
+            {(currentUserRole === "ADMIN" || currentUserRole === "PROJECT_MANAGER") && (
               <>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setConfirmArchive(true)} title={task.archivedAt ? "Unarchive" : "Archive"}>
                   {task.archivedAt ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
@@ -543,9 +543,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
               <div className="space-y-4">
                 {task.comments?.map((c: any) => {
                   const isOwn = c.author?.id === currentUserId;
-                  const canDeleteComment = isOwn ||
-                    currentUserRole === "OWNER" || currentUserRole === "ADMIN" ||
-                    currentUserRole === "RANK1" || currentUserRole === "RANK2";
+                  const canDeleteComment = isOwn || currentUserRole === "ADMIN";
                   const isEditing = editingCommentId === c.id;
                   return (
                     <div key={c.id} className="flex gap-3 group">

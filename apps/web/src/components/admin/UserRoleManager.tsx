@@ -17,15 +17,15 @@ import {
 } from "@/components/ui/select";
 
 const ROLE_LABELS: Record<string, string> = {
-  RANK1: "Admin",
-  RANK2: "Project Manager",
-  RANK3: "Member",
+  ADMIN: "Admin",
+  PROJECT_MANAGER: "Project Manager",
+  MEMBER: "Member",
 };
 
 const ROLE_BADGE: Record<string, string> = {
-  RANK1: "bg-primary/20 text-primary border-0",
-  RANK2: "bg-blue-500/20 text-blue-400 border-0",
-  RANK3: "bg-zinc-500/20 text-zinc-400 border-0",
+  ADMIN: "bg-primary/20 text-primary border-0",
+  PROJECT_MANAGER: "bg-blue-500/20 text-blue-400 border-0",
+  MEMBER: "bg-zinc-500/20 text-zinc-400 border-0",
 };
 
 interface User {
@@ -132,9 +132,9 @@ export function UserRoleManager({ users, currentUserId }: { users: User[]; curre
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="RANK1">Admin</SelectItem>
-                        <SelectItem value="RANK2">Project Manager</SelectItem>
-                        <SelectItem value="RANK3">Member</SelectItem>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="PROJECT_MANAGER">Project Manager</SelectItem>
+                        <SelectItem value="MEMBER">Member</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

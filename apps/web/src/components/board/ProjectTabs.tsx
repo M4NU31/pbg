@@ -51,7 +51,7 @@ export function ProjectTabs({
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get("tab") as Tab) || "tasks";
-  const canManage = currentUserRole === "OWNER" || currentUserRole === "ADMIN" || currentUserRole === "RANK1";
+  const canManage = currentUserRole === "ADMIN" || currentUserRole === "PROJECT_MANAGER";
 
   function setTab(tab: Tab) {
     const params = new URLSearchParams(searchParams.toString());

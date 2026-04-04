@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER" && member!.role !== "ADMIN" && member!.role !== "RANK1") {
+  if (member!.role !== "ADMIN" && member!.role !== "PROJECT_MANAGER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -103,7 +103,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER" && member!.role !== "ADMIN" && member!.role !== "RANK1") {
+  if (member!.role !== "ADMIN" && member!.role !== "PROJECT_MANAGER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -118,8 +118,11 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
 
-  if (targetMember.role === "OWNER") {
-    return NextResponse.json({ error: "Cannot remove project owner" }, { status: 400 });
+  if (targetMember.role === "PROJECT_MANAGER") {
+    // Project Managers can be removed by Admin only
+    if (member!.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only an Admin can remove a Project Manager" }, { status: 403 });
+    }
   }
 
   await execute(`DELETE FROM ProjectMember WHERE projectId = ? AND userId = ?`, [projectId, userId]);
@@ -135,7 +138,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER" && member!.role !== "RANK1") {
+  if (member!.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -150,9 +153,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "User is not a project member" }, { status: 404 });
   }
 
-  // Demote current owner → MEMBER, promote new owner → OWNER, update Project.ownerId
-  await execute(`UPDATE ProjectMember SET role = 'MEMBER' WHERE projectId = ? AND userId = ?`, [projectId, member!.userId]);
-  await execute(`UPDATE ProjectMember SET role = 'OWNER' WHERE projectId = ? AND userId = ?`, [projectId, newOwnerId]);
+  // Promote target → PROJECT_MANAGER, update Project.ownerId
+  await execute(`UPDATE ProjectMember SET role = 'PROJECT_MANAGER' WHERE projectId = ? AND userId = ?`, [projectId, newOwnerId]);
   await execute(`UPDATE Project SET ownerId = ? WHERE id = ?`, [newOwnerId, projectId]);
 
   return NextResponse.json({ ok: true });

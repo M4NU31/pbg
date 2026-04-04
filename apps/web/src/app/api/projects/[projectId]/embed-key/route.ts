@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { execute } from "@/lib/db";
-import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
+import { requireAuth, requireProjectAccess, canManageProject } from "@/lib/auth-helpers";
 import { generateEmbedKey } from "@/lib/utils";
 
 type Params = { params: Promise<{ projectId: string }> };
@@ -16,7 +16,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   );
   if (accessError) return accessError;
 
-  if (member!.role !== "OWNER" && member!.role !== "ADMIN") {
+  if (!canManageProject(member!.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

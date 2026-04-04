@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
-  if (member!.role === "CLIENT" || member!.role === "VIEWER") {
+  if (member!.role === "CLIENT") {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 
@@ -39,7 +39,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
-  if (member!.role === "CLIENT" || member!.role === "VIEWER") {
+  if (member!.role === "CLIENT") {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 

@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, execute } from "@/lib/db";
-import { requireAuth, requireProjectAccess, getSystemRole } from "@/lib/auth-helpers";
+import { requireAuth, requireProjectAccess, canManageProject } from "@/lib/auth-helpers";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string }> };
-
-async function canInviteClients(role: string, userId: string, email?: string | null) {
-  // OWNER, ADMIN, RANK1 (super admin), RANK2 (project manager)
-  if (role === "OWNER" || role === "ADMIN" || role === "RANK1") return true;
-  const systemRole = await getSystemRole(userId, email);
-  if (systemRole === "RANK2") return true;
-  return false;
-}
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { projectId } = await params;
@@ -21,8 +13,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
-  const allowed = await canInviteClients(member!.role, session!.user.id, session!.user.email);
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canManageProject(member!.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const rows = await query<Record<string, unknown>>(
     `SELECT ci.id, ci.email, ci.createdAt, u.name as inviterName
@@ -60,8 +51,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { error: accessError, member } = await requireProjectAccess(session!.user.id, projectId);
   if (accessError) return accessError;
 
-  const allowed = await canInviteClients(member!.role, session!.user.id, session!.user.email);
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!canManageProject(member!.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { email } = await req.json();
   if (!email?.trim() || !email.includes("@")) {

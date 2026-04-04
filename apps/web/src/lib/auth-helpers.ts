@@ -3,21 +3,22 @@ import { authOptions } from "@/lib/auth";
 import { queryOne, parseJson } from "@/lib/db";
 import { NextResponse } from "next/server";
 
-export type SystemRole = "RANK1" | "RANK2" | "RANK3";
+/** System-wide roles stored in User.systemRole */
+export type SystemRole = "ADMIN" | "PROJECT_MANAGER" | "MEMBER";
 
-// Bootstrap: if DB column doesn't exist yet, fall back to email check
+// Bootstrap: the hardcoded super-admin email is always treated as ADMIN
 const BOOTSTRAP_ADMIN_EMAIL = "manuel@punchteam.com";
 
 export async function getSystemRole(userId: string, email?: string | null): Promise<SystemRole> {
-  if (email === BOOTSTRAP_ADMIN_EMAIL) return "RANK1";
+  if (email === BOOTSTRAP_ADMIN_EMAIL) return "ADMIN";
   try {
     const row = await queryOne<{ systemRole: string }>(
       `SELECT systemRole FROM User WHERE id = ?`,
       [userId]
     );
-    return (row?.systemRole as SystemRole) ?? "RANK3";
+    return (row?.systemRole as SystemRole) ?? "MEMBER";
   } catch {
-    return "RANK3";
+    return "MEMBER";
   }
 }
 
@@ -54,7 +55,8 @@ export async function requireProjectAccess(
   const session = await getServerSession(authOptions);
   const systemRole = await getSystemRole(userId, session?.user?.email);
 
-  if (systemRole === "RANK1") {
+  // System ADMIN bypasses membership — can access any project
+  if (systemRole === "ADMIN") {
     const row = await queryOne<Record<string, unknown>>(
       `SELECT p.id as p_id, p.name as p_name, p.description as p_description,
        p.embedKey as p_embedKey, p.allowedDomains as p_allowedDomains,
@@ -71,7 +73,7 @@ export async function requireProjectAccess(
         id: "admin",
         projectId,
         userId,
-        role: "RANK1",
+        role: "ADMIN",
         joinedAt: new Date(),
         project: {
           id: row.p_id as string,
@@ -101,9 +103,9 @@ export async function requireProjectAccess(
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), member: null };
   }
 
-  // Force CLIENT role for any non-punchteam email regardless of DB value
-  const isClientEmail = !session?.user?.email?.endsWith("@punchteam.com");
-  const effectiveRole = isClientEmail ? "CLIENT" : (row.role as string);
+  // External (non-punchteam) emails are always CLIENT regardless of DB value
+  const isExternal = !session?.user?.email?.endsWith("@punchteam.com");
+  const effectiveRole = isExternal ? "CLIENT" : (row.role as string);
 
   return {
     error: null,
@@ -125,4 +127,9 @@ export async function requireProjectAccess(
       },
     },
   };
+}
+
+/** True when the role has project-management rights (Admin or Project Manager) */
+export function canManageProject(role: string): boolean {
+  return role === "ADMIN" || role === "PROJECT_MANAGER";
 }

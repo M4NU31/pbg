@@ -27,10 +27,10 @@ export function ArchivedProjectCard({ project, systemRole, currentUserId }: Arch
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const isRank1 = systemRole === "RANK1";
+  const isAdmin = systemRole === "ADMIN";
   const isOwner = project.ownerId === currentUserId;
-  const canRestore = isRank1 || (systemRole === "RANK2" && isOwner);
-  const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
+  const canRestore = isAdmin || (systemRole === "PROJECT_MANAGER" && isOwner);
+  const canDelete = isAdmin;
 
   async function handleRestore() {
     setLoading(true);

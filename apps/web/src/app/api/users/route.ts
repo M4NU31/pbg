@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { query, execute } from "@/lib/db";
 import { requireAuth, getSystemRole } from "@/lib/auth-helpers";
 
-async function guardRank1(session: NonNullable<Awaited<ReturnType<typeof requireAuth>>["session"]>) {
+async function guardAdmin(session: NonNullable<Awaited<ReturnType<typeof requireAuth>>["session"]>) {
   const systemRole = await getSystemRole(session.user.id, session.user.email);
-  return systemRole === "RANK1";
+  return systemRole === "ADMIN";
 }
 
 export async function GET() {
   const { error, session } = await requireAuth();
   if (error) return error;
-  if (!await guardRank1(session!)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!await guardAdmin(session!)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const rows = await query<Record<string, unknown>>(
     `SELECT u.id, u.name, u.email, u.image, u.systemRole, u.createdAt,
@@ -27,11 +27,11 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const { error, session } = await requireAuth();
   if (error) return error;
-  if (!await guardRank1(session!)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!await guardAdmin(session!)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { userId, newRole } = await req.json();
 
-  if (!userId || !["RANK1", "RANK2", "RANK3"].includes(newRole)) {
+  if (!userId || !["ADMIN", "PROJECT_MANAGER", "MEMBER"].includes(newRole)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
   if (userId === session!.user.id) {
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { error, session } = await requireAuth();
   if (error) return error;
-  if (!await guardRank1(session!)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!await guardAdmin(session!)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { userId } = await req.json();
 

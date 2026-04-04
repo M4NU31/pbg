@@ -44,8 +44,7 @@ interface MemberListProps {
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const ROLE_LABELS: Record<string, string> = {
-  OWNER: "Owner", ADMIN: "Admin", MEMBER: "Member",
-  VIEWER: "Viewer", RANK1: "Admin", CLIENT: "Client",
+  ADMIN: "Admin", PROJECT_MANAGER: "Project Manager", MEMBER: "Member", CLIENT: "Client",
 };
 
 export function MemberList({ projectId, members, currentUserId, isAdmin, canManageClients }: MemberListProps) {
@@ -241,7 +240,7 @@ export function MemberList({ projectId, members, currentUserId, isAdmin, canMana
                 <p className="text-xs text-muted-foreground truncate">{member.user.email}</p>
               </div>
               <Badge variant="outline" className="text-xs">{ROLE_LABELS[member.role] ?? member.role}</Badge>
-              {isAdmin && member.user.id !== currentUserId && member.role !== "OWNER" && (
+              {isAdmin && member.user.id !== currentUserId && (
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-yellow-500"
                     onClick={() => setTransferTarget(member)} title="Transfer ownership">

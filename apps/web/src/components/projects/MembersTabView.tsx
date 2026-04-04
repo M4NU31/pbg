@@ -14,8 +14,7 @@ import { UserPlus, Trash2, CheckCircle2, Clock } from "lucide-react";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const ROLE_LABELS: Record<string, string> = {
-  OWNER: "Owner", ADMIN: "Admin", MEMBER: "Member",
-  VIEWER: "Viewer", RANK1: "Admin", RANK2: "PM", CLIENT: "Client",
+  ADMIN: "Admin", PROJECT_MANAGER: "Project Manager", MEMBER: "Member", CLIENT: "Client",
 };
 
 interface Member {
@@ -42,8 +41,8 @@ interface MembersTabViewProps {
 
 export function MembersTabView({ projectId, allMembers, currentUserId, currentUserRole, filter }: MembersTabViewProps) {
   const router = useRouter();
-  const canManage = currentUserRole === "OWNER" || currentUserRole === "ADMIN" || currentUserRole === "RANK1";
-  const canManageClients = canManage || currentUserRole === "RANK2";
+  const canManage = currentUserRole === "ADMIN" || currentUserRole === "PROJECT_MANAGER";
+  const canManageClients = canManage;
 
   const teamMembers = allMembers.filter((m) => m.role !== "CLIENT");
   const clientMembers = allMembers.filter((m) => m.role === "CLIENT");
@@ -225,7 +224,7 @@ export function MembersTabView({ projectId, allMembers, currentUserId, currentUs
                 <p className="text-xs text-muted-foreground truncate">{m.user.email}</p>
               </div>
               <Badge variant="secondary" className="text-xs shrink-0">{ROLE_LABELS[m.role] ?? m.role}</Badge>
-              {canManage && m.user.id !== currentUserId && m.role !== "OWNER" && (
+              {canManage && m.user.id !== currentUserId && (
                 <Button
                   variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
                   onClick={() => setRemoveTarget(m)}

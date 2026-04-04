@@ -34,12 +34,12 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const [imgKey, setImgKey] = useState(0);
   const captureTriggered = useRef(false);
 
-  const isRank1 = systemRole === "RANK1";
+  const isAdmin = systemRole === "ADMIN";
   const isOwner = project.ownerId === currentUserId;
-  const canArchive = isRank1 || (systemRole === "RANK2" && isOwner);
-  const canDelete = isRank1 || (systemRole === "RANK2" && isOwner);
+  const canArchive = isAdmin || (systemRole === "PROJECT_MANAGER" && isOwner);
+  const canDelete = isAdmin;
   const canRetakeScreenshot =
-    (isRank1 || systemRole === "RANK2" || project.role === "OWNER" || project.role === "ADMIN") &&
+    (isAdmin || systemRole === "PROJECT_MANAGER" || project.role === "PROJECT_MANAGER") &&
     !!project.siteUrl;
 
   const thumbSrc = `/api/projects/${project.id}/screenshot?v=${imgKey}`;

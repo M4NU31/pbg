@@ -9,12 +9,12 @@ export default async function DashboardPage() {
   if (!session?.user?.id) return null;
 
   const systemRole = await getSystemRole(session.user.id, session.user.email);
-  const isRank1 = systemRole === "RANK1";
-  const canCreateProjects = systemRole === "RANK1" || systemRole === "RANK2";
+  const isAdmin = systemRole === "ADMIN";
+  const canCreateProjects = systemRole === "ADMIN" || systemRole === "PROJECT_MANAGER";
 
   const rows = await query<Record<string, unknown>>(
-    isRank1
-      ? `SELECT 'RANK1' as role,
+    isAdmin
+      ? `SELECT 'ADMIN' as role,
          p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
          (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
          (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
@@ -35,7 +35,7 @@ export default async function DashboardPage() {
          JOIN User u ON p.ownerId = u.id
          WHERE pm.userId = ? AND p.archivedAt IS NULL
          ORDER BY p.updatedAt DESC`,
-    isRank1 ? [] : [session.user.id]
+    isAdmin ? [] : [session.user.id]
   );
 
   const projects = rows.map((row) => ({

@@ -36,7 +36,7 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ projectId, members, currentUserId, currentUserRole }: KanbanBoardProps) {
-  const canManage = currentUserRole === "OWNER" || currentUserRole === "ADMIN" || currentUserRole === "RANK1";
+  const canManage = currentUserRole === "ADMIN" || currentUserRole === "PROJECT_MANAGER";
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -189,13 +189,11 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
           <div className="text-sm text-muted-foreground shrink-0">{tasks.length} tasks</div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {currentUserRole !== "CLIENT" && (
-            <Button size="sm" onClick={() => setCreateInColumnId(columns[0]?.id ?? null)}>
-              <Plus className="h-4 w-4 mr-1" />
-              <span className="hidden sm:inline">Add Task</span>
-              <span className="sm:hidden">Add</span>
-            </Button>
-          )}
+          <Button size="sm" onClick={() => setCreateInColumnId(columns[0]?.id ?? null)}>
+            <Plus className="h-4 w-4 mr-1" />
+            <span className="hidden sm:inline">Add Task</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
           {canManage && (
             <Button variant="outline" size="sm" asChild>
               <Link href={`/projects/${projectId}/settings`}>

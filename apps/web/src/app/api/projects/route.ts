@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const systemRole = await getSystemRole(session!.user.id, session!.user.email);
-  if (systemRole === "RANK3") {
+  if (systemRole === "MEMBER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     );
     await connExecute(
       conn,
-      `INSERT INTO ProjectMember (id, projectId, userId, role, joinedAt) VALUES (?, ?, ?, 'OWNER', NOW())`,
+      `INSERT INTO ProjectMember (id, projectId, userId, role, joinedAt) VALUES (?, ?, ?, 'PROJECT_MANAGER', NOW())`,
       [memberId, projectId, userId]
     );
     for (let i = 0; i < defaultColumns.length; i++) {

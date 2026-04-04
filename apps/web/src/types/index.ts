@@ -1,6 +1,6 @@
 export type TaskStatus = "BACKLOG" | "TODO" | "DOING" | "DONE" | "CLOSED";
 export type Priority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-export type MemberRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+export type MemberRole = "ADMIN" | "PROJECT_MANAGER" | "MEMBER" | "CLIENT";
 export type ActivityType =
   | "TASK_CREATED"
   | "STATUS_CHANGED"

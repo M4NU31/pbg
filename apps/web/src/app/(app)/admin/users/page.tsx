@@ -11,7 +11,7 @@ export default async function AdminUsersPage() {
   if (!session?.user?.id) return null;
 
   const systemRole = await getSystemRole(session.user.id, session.user.email);
-  if (systemRole !== "RANK1") notFound();
+  if (systemRole !== "ADMIN") notFound();
 
   const users = await query<Record<string, unknown>>(
     `SELECT u.id, u.name, u.email, u.image, u.systemRole, u.createdAt,

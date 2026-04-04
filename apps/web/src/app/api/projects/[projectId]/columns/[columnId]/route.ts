@@ -7,7 +7,7 @@ type Params = { params: Promise<{ projectId: string; columnId: string }> };
 async function guardOwner(session: NonNullable<any>, projectId: string) {
   const { error, member } = await requireProjectAccess(session.user.id, projectId);
   if (error) return error;
-  if (member!.role !== "OWNER" && member!.role !== "ADMIN" && member!.role !== "RANK1") {
+  if (member!.role !== "ADMIN" && member!.role !== "PROJECT_MANAGER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return null;
