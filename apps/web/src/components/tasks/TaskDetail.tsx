@@ -36,6 +36,11 @@ interface TaskDetailProps {
   onUpdate: () => void;
 }
 
+/** Converts structured @[Name](id) tokens back to plain @Name for editing */
+function mentionsToPlain(body: string): string {
+  return body.replace(/@\[([^\]]+)\]\([^)]+\)/g, "@$1");
+}
+
 /** Renders comment text with mentions highlighted.
  *  Handles both structured @[Name](userId) and legacy plain @Name formats. */
 function CommentBody({ body }: { body: string }) {
@@ -560,7 +565,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
                               {isOwn && (
                                 <Button
                                   variant="ghost" size="icon" className="h-5 w-5"
-                                  onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(c.body); }}
+                                  onClick={() => { setEditingCommentId(c.id); setEditingCommentBody(mentionsToPlain(c.body)); }}
                                   title="Edit comment"
                                 >
                                   <Pencil className="h-3 w-3" />
