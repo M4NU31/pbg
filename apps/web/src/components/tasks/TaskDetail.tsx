@@ -199,16 +199,22 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
+      // Don't close while a confirm dialog is open
+      if (confirmArchive || confirmDelete) return;
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        // Don't close when clicking inside a portal (dialogs, dropdowns, toasts)
+        // Don't close if clicking inside any portal/dialog (dropdowns, selects, toasts…)
         const target = e.target as HTMLElement;
-        if (target.closest('[role="dialog"]') || target.closest('[data-radix-portal]')) return;
+        if (
+          target.closest('[role="dialog"]') ||
+          target.closest('[data-radix-portal]') ||
+          document.querySelector('[role="dialog"][data-state="open"]')
+        ) return;
         onClose();
       }
     }
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [onClose]);
+  }, [onClose, confirmArchive, confirmDelete]);
 
   // ── API helpers ──────────────────────────────────────────────────
   async function updateTask(data: Record<string, unknown>) {
