@@ -50,14 +50,13 @@ export default async function ProjectPage({
     ownerId: memberRow.p_ownerId as string,
   };
 
-  const members = memberRows
-    .filter((u) => (u.u_email as string).endsWith("@punchteam.com"))
-    .map((u) => ({
-      id: u.u_id as string,
-      name: (u.u_name as string | null) ?? null,
-      email: u.u_email as string,
-      image: (u.u_image as string | null) ?? gravatarUrl(u.u_email as string),
-    }));
+  // All project members (internal + clients) — used for assignee picker and @mentions
+  const members = memberRows.map((u) => ({
+    id: u.u_id as string,
+    name: (u.u_name as string | null) ?? null,
+    email: u.u_email as string,
+    image: (u.u_image as string | null) ?? gravatarUrl(u.u_email as string),
+  }));
 
   const ROLE_NORM: Record<string, string> = {
     RANK1: "ADMIN", RANK2: "PROJECT_MANAGER", RANK3: "MEMBER", OWNER: "PROJECT_MANAGER",
