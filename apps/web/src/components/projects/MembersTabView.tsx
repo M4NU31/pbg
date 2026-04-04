@@ -303,7 +303,10 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
   }
 
   // ── Render: Clients ───────────────────────────────────────────────
-  const revokeTargetData = clients.find((c) => c.id === revokeTarget);
+  const revokeTargetData: { email: string } | undefined =
+    clients.find((c) => c.id === revokeTarget) ??
+    clientMembers.find((m) => m.id === revokeTarget)?.user ??
+    undefined;
 
   return (
     <div className="p-6 max-w-xl space-y-6">
