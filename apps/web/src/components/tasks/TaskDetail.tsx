@@ -200,6 +200,9 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        // Don't close when clicking inside a portal (dialogs, dropdowns, toasts)
+        const target = e.target as HTMLElement;
+        if (target.closest('[role="dialog"]') || target.closest('[data-radix-portal]')) return;
         onClose();
       }
     }
