@@ -5,9 +5,12 @@ import { submitReport } from "../api/reporter";
 
 interface FormData {
   domInfo: DomInfo;
-  screenshot: string;
+  screenshotFull: string;  // base64 PNG — sent to API / shown in lightbox
+  screenshotThumb: string; // base64 PNG — thumbnail shown in form
   browserMeta: BrowserMeta;
   pageUrl: string;
+  pinX: number;
+  pinY: number;
   embedKey: string;
   apiUrl: string;
   columns: BoardColumn[];
@@ -58,13 +61,27 @@ export class ReportForm {
            </div>`
         : "";
 
+    const screenshotHtml = data.screenshotThumb
+      ? `<div class="pb-screenshot-wrap">
+           <img class="pb-screenshot-preview" src="${data.screenshotThumb}" alt="Screenshot" />
+           <button class="pb-screenshot-expand" id="pb-expand-btn" title="View full screenshot">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+               <polyline points="15 3 21 3 21 9"></polyline>
+               <polyline points="9 21 3 21 3 15"></polyline>
+               <line x1="21" y1="3" x2="14" y2="10"></line>
+               <line x1="3" y1="21" x2="10" y2="14"></line>
+             </svg>
+           </button>
+         </div>`
+      : "";
+
     card.innerHTML = `
       <div class="pb-form-header">
         <h2 class="pb-form-title">Report a Task</h2>
         <button class="pb-close-btn" id="pb-close">&#x2715;</button>
       </div>
 
-      ${data.screenshot ? `<img class="pb-screenshot-preview" src="${data.screenshot}" alt="Element screenshot" />` : ""}
+      ${screenshotHtml}
 
       <div class="pb-info-box">
         <div class="pb-info-row">
@@ -105,29 +122,29 @@ export class ReportForm {
     overlay.appendChild(card);
     this.shadow.appendChild(overlay);
 
-    // Event handlers
-    const closeBtn = this.shadow.getElementById("pb-close");
-    closeBtn?.addEventListener("click", () => this.close());
+    // Close handlers
+    this.shadow.getElementById("pb-close")?.addEventListener("click", () => this.close());
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) this.close(); });
 
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) this.close();
-    });
+    // Screenshot expand button → open lightbox with full screenshot
+    if (data.screenshotFull) {
+      this.shadow.getElementById("pb-expand-btn")?.addEventListener("click", () => {
+        this.openLightbox(data.screenshotFull);
+      });
+    }
 
     // Tag pill toggle interaction
     if (data.tags.length > 0) {
-      const tagPills = this.shadow.querySelectorAll<HTMLSpanElement>(".pb-tag-pill");
-      tagPills.forEach((pill) => {
-        pill.style.cursor = "pointer";
+      this.shadow.querySelectorAll<HTMLSpanElement>(".pb-tag-pill").forEach((pill) => {
+        pill.style.opacity = "0.55";
         pill.addEventListener("click", () => {
           const tagId = pill.dataset.tagId!;
           const cb = this.shadow.querySelector<HTMLInputElement>(`.pb-tag-cb[value="${tagId}"]`);
           if (!cb) return;
           cb.checked = !cb.checked;
-          pill.style.opacity = cb.checked ? "1" : "0.5";
+          pill.style.opacity = cb.checked ? "1" : "0.55";
           pill.style.fontWeight = cb.checked ? "600" : "400";
         });
-        // start unchecked / dimmed
-        pill.style.opacity = "0.55";
       });
     }
 
@@ -156,7 +173,7 @@ export class ReportForm {
           embedKey: data.embedKey,
           title,
           description: description || undefined,
-          screenshot: data.screenshot,
+          screenshot: data.screenshotFull,
           domSelector: data.domInfo.selector,
           domHtml: data.domInfo.outerHtml,
           pageUrl: data.pageUrl,
@@ -164,6 +181,8 @@ export class ReportForm {
           tagIds: tagIds.length > 0 ? tagIds : undefined,
           reporterName: data.reporterName,
           browserMeta: data.browserMeta,
+          pinX: data.pinX,
+          pinY: data.pinY,
         });
 
         const formEl = this.shadow.getElementById("pb-report-form");
@@ -181,6 +200,22 @@ export class ReportForm {
     });
 
     return overlay;
+  }
+
+  private openLightbox(src: string) {
+    const lb = document.createElement("div");
+    lb.className = "pb-lightbox";
+    const img = document.createElement("img");
+    img.className = "pb-lightbox-img";
+    img.src = src;
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "pb-lightbox-close";
+    closeBtn.innerHTML = "&#x2715;";
+    closeBtn.addEventListener("click", () => lb.remove());
+    lb.addEventListener("click", (e) => { if (e.target === lb) lb.remove(); });
+    lb.appendChild(closeBtn);
+    lb.appendChild(img);
+    this.shadow.appendChild(lb);
   }
 
   close() {

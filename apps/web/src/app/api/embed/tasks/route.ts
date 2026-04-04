@@ -35,11 +35,11 @@ export async function GET(req: NextRequest) {
     id: string; taskNumber: number; title: string;
     domSelector: string | null; screenshotUrl: string | null;
     status: string; priority: string; guestName: string | null;
-    createdAt: Date;
+    createdAt: Date; pinX: number | null; pinY: number | null;
   }>(
-    `SELECT id, taskNumber, title, domSelector, screenshotUrl, status, priority, guestName, createdAt
+    `SELECT id, taskNumber, title, domSelector, screenshotUrl, status, priority, guestName, createdAt, pinX, pinY
      FROM Task
-     WHERE projectId = ? AND archivedAt IS NULL AND domSelector IS NOT NULL
+     WHERE projectId = ? AND archivedAt IS NULL AND (domSelector IS NOT NULL OR pinX IS NOT NULL)
      AND (pageUrl = ? OR pageUrl LIKE ? OR pageUrl LIKE ?)
      ORDER BY taskNumber ASC`,
     [project.id, pageUrl, `${baseUrl}?%`, `${baseUrl}%`]

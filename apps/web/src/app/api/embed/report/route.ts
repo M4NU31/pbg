@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, tagIds, reporterName, guestName, guestEmail, browserMeta } = body;
+  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, tagIds, reporterName, guestName, guestEmail, browserMeta, pinX, pinY } = body;
   const resolvedTagIds: string[] = Array.isArray(tagIds) ? tagIds : [];
 
   if (!embedKey || !title || !domSelector || !pageUrl) {
@@ -100,8 +100,9 @@ export async function POST(req: NextRequest) {
         guestName, guestEmail, screenshotUrl, domSelector, domHtml, pageUrl,
         browserName, browserVersion, osName, osVersion, deviceType,
         screenWidth, screenHeight, viewportWidth, viewportHeight, userAgent,
+        pinX, pinY,
         createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', 'MEDIUM', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', 'MEDIUM', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         taskId, projectId, title.slice(0, 255), description?.slice(0, 5000) || null, num,
         targetColumnId, reporterName || guestName || null, guestEmail || null,
@@ -113,6 +114,7 @@ export async function POST(req: NextRequest) {
         browserMeta?.screenWidth || null, browserMeta?.screenHeight || null,
         browserMeta?.viewportWidth || null, browserMeta?.viewportHeight || null,
         browserMeta?.userAgent?.slice(0, 500) || null,
+        pinX ?? null, pinY ?? null,
       ]
     );
 

@@ -1,10 +1,18 @@
+export interface PickResult {
+  el: HTMLElement;
+  /** Page X coordinate of the click (pageX = clientX + scrollX) */
+  pageX: number;
+  /** Page Y coordinate of the click (pageY = clientY + scrollY) */
+  pageY: number;
+}
+
 export class ElementPicker {
   private hoveredEl: HTMLElement | null = null;
-  private originalOutline: string = "";
-  private onPick: (el: HTMLElement) => void;
+  private highlightOverlay: HTMLElement | null = null;
+  private onPick: (result: PickResult) => void;
   private onCancel: () => void;
 
-  constructor(onPick: (el: HTMLElement) => void, onCancel: () => void) {
+  constructor(onPick: (result: PickResult) => void, onCancel: () => void) {
     this.onPick = onPick;
     this.onCancel = onCancel;
     this.handleMouseOver = this.handleMouseOver.bind(this);
@@ -32,32 +40,50 @@ export class ElementPicker {
 
   private highlight(el: HTMLElement) {
     this.clearHighlight();
-    // Avoid highlighting our own UI
     if (el.closest("#punchbug-root")) return;
     this.hoveredEl = el;
-    this.originalOutline = el.style.outline;
-    el.style.outline = "2px solid #3b82f6";
-    el.style.outlineOffset = "2px";
+
+    const rect = el.getBoundingClientRect();
+
+    // Use a fixed-position, pointer-events:none overlay so the host page layout
+    // is never affected (no outline/border is set on the target element itself).
+    const overlay = document.createElement("div");
+    overlay.id = "pb-highlight-overlay";
+    overlay.setAttribute("data-punchbug-ignore", "true");
+    overlay.style.cssText = [
+      "position:fixed",
+      `top:${rect.top}px`,
+      `left:${rect.left}px`,
+      `width:${rect.width}px`,
+      `height:${rect.height}px`,
+      "pointer-events:none",
+      "z-index:2147483645",
+      "outline:2px solid hsl(348,100%,52%)",
+      "outline-offset:2px",
+      "border-radius:2px",
+      "background:hsla(348,100%,52%,0.06)",
+      "box-sizing:border-box",
+    ].join(";");
+
+    document.body.appendChild(overlay);
+    this.highlightOverlay = overlay;
   }
 
   private clearHighlight() {
-    if (this.hoveredEl) {
-      this.hoveredEl.style.outline = this.originalOutline;
-      this.hoveredEl.style.outlineOffset = "";
-      this.hoveredEl = null;
-    }
+    this.highlightOverlay?.remove();
+    this.highlightOverlay = null;
+    this.hoveredEl = null;
   }
 
   private handleMouseOver(e: MouseEvent) {
     const el = e.target as HTMLElement;
-    if (el && !el.closest("#punchbug-root")) {
+    if (el && !el.closest("#punchbug-root") && el !== this.highlightOverlay) {
       this.highlight(el);
     }
   }
 
   private handleMouseOut(e: MouseEvent) {
-    const el = e.target as HTMLElement;
-    if (this.hoveredEl === el) {
+    if (this.hoveredEl === e.target) {
       this.clearHighlight();
     }
   }
@@ -66,10 +92,14 @@ export class ElementPicker {
     e.preventDefault();
     e.stopPropagation();
     const el = e.target as HTMLElement;
-    if (el && !el.closest("#punchbug-root")) {
+    if (el && !el.closest("#punchbug-root") && el !== this.highlightOverlay) {
       this.clearHighlight();
       this.stop();
-      this.onPick(el);
+      this.onPick({
+        el,
+        pageX: e.clientX + window.scrollX,
+        pageY: e.clientY + window.scrollY,
+      });
     }
   }
 

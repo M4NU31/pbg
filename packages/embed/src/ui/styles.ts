@@ -13,7 +13,7 @@ export const EMBED_STYLES = `
     right: 0;
     top: 50%;
     transform: translateY(-50%);
-    background: #3b82f6;
+    background: hsl(348,100%,52%);
     color: white;
     border: none;
     border-radius: 8px 0 0 8px;
@@ -34,11 +34,11 @@ export const EMBED_STYLES = `
   }
 
   .pb-trigger:hover {
-    background: #2563eb;
+    background: hsl(348,100%,42%);
   }
 
   .pb-trigger.pb-active {
-    background: #dc2626;
+    background: hsl(348,100%,30%);
   }
 
   .pb-trigger svg {
@@ -98,13 +98,89 @@ export const EMBED_STYLES = `
     background: #f3f4f6;
   }
 
+  /* Screenshot thumbnail with expand button */
+  .pb-screenshot-wrap {
+    position: relative;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    cursor: zoom-in;
+  }
+
   .pb-screenshot-preview {
     width: 100%;
     max-height: 180px;
     object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  .pb-screenshot-task {
+    max-height: 140px;
+  }
+
+  .pb-screenshot-expand {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0,0,0,0.55);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .pb-screenshot-wrap:hover .pb-screenshot-expand {
+    opacity: 1;
+  }
+
+  /* Lightbox for full screenshot */
+  .pb-lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+
+  .pb-lightbox-img {
+    max-width: calc(100vw - 48px);
+    max-height: calc(100vh - 48px);
     border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    cursor: default;
+  }
+
+  .pb-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+
+  .pb-lightbox-close:hover {
+    background: rgba(255,255,255,0.25);
   }
 
   .pb-field {
@@ -132,8 +208,8 @@ export const EMBED_STYLES = `
   }
 
   .pb-input:focus, .pb-textarea:focus, select.pb-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: hsl(348,100%,52%);
+    box-shadow: 0 0 0 3px hsla(348,100%,52%,0.12);
   }
 
   .pb-textarea {
@@ -170,7 +246,7 @@ export const EMBED_STYLES = `
   .pb-submit-btn {
     width: 100%;
     padding: 10px;
-    background: #3b82f6;
+    background: hsl(348,100%,52%);
     color: white;
     border: none;
     border-radius: 6px;
@@ -183,7 +259,7 @@ export const EMBED_STYLES = `
   }
 
   .pb-submit-btn:hover:not(:disabled) {
-    background: #2563eb;
+    background: hsl(348,100%,42%);
   }
 
   .pb-submit-btn:disabled {
@@ -245,8 +321,8 @@ export const EMBED_STYLES = `
   .pb-badge {
     display: inline-flex;
     align-items: center;
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: hsl(348,100%,97%);
+    color: hsl(348,100%,35%);
     font-size: 11px;
     font-weight: 600;
     padding: 2px 8px;

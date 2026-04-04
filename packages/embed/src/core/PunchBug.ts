@@ -1,9 +1,9 @@
-import { ElementPicker } from "../ui/ElementPicker";
+import { ElementPicker, PickResult } from "../ui/ElementPicker";
 import { ReportForm } from "../ui/ReportForm";
 import { TaskPanel } from "../ui/TaskPanel";
 import { getDomInfo } from "../capture/domInfo";
 import { getBrowserMeta } from "../capture/browserMeta";
-import { captureElement } from "../capture/screenshot";
+import { captureViewport } from "../capture/screenshot";
 import { EMBED_STYLES } from "../ui/styles";
 
 export interface PunchBugConfig {
@@ -28,12 +28,14 @@ export interface EmbedTask {
   id: string;
   taskNumber: number;
   title: string;
-  domSelector: string;
+  domSelector: string | null;
   screenshotUrl: string | null;
   status: string;
   priority: string;
   guestName: string | null;
   createdAt: string;
+  pinX: number | null;
+  pinY: number | null;
 }
 
 export class PunchBug {
@@ -72,7 +74,7 @@ export class PunchBug {
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path>
       </svg>
-      <span>Report Task</span>
+      <span>Report</span>
     `;
 
     this.shadow.appendChild(this.triggerBtn);
@@ -117,33 +119,43 @@ export class PunchBug {
   }
 
   private createPins(tasks: EmbedTask[]) {
-    // Remove any existing pins first
     this.pinCleanups.forEach((fn) => fn());
     this.pinCleanups = [];
 
     for (const task of tasks) {
-      try {
-        const el = document.querySelector(task.domSelector) as HTMLElement | null;
-        if (!el) continue;
-        this.createPin(el, task);
-      } catch { /* element may not exist on this page */ }
+      if (task.pinX !== null && task.pinY !== null) {
+        // New-style: absolute page-coordinate pin
+        this.createPinAtCoords(task);
+      } else if (task.domSelector) {
+        // Legacy: derive position from element bounding rect
+        try {
+          const el = document.querySelector(task.domSelector) as HTMLElement | null;
+          if (el) this.createPinOnElement(el, task);
+        } catch { /* element may not exist on this page */ }
+      }
     }
   }
 
-  private createPin(el: HTMLElement, task: EmbedTask) {
-    const pin = document.createElement("button");
-    pin.setAttribute("data-punchbug-ignore", "true");
-    pin.textContent = String(task.taskNumber);
-    pin.style.cssText =
-      "position:absolute;z-index:2147483644;background:#3b82f6;color:#fff;" +
-      "border:2px solid #fff;border-radius:50%;width:22px;height:22px;" +
-      "font-size:10px;font-weight:700;cursor:pointer;display:flex;" +
-      "align-items:center;justify-content:center;padding:0;" +
-      "box-shadow:0 2px 6px rgba(0,0,0,0.35);font-family:sans-serif;" +
-      "line-height:1;transition:transform 0.15s,background 0.15s;";
+  /** Pin placed at a stored page coordinate — no scroll listener needed. */
+  private createPinAtCoords(task: EmbedTask) {
+    const pin = this.buildPinEl(task);
+    pin.style.position = "absolute";
+    pin.style.top = `${(task.pinY ?? 0) - 11}px`;
+    pin.style.left = `${(task.pinX ?? 0) - 11}px`;
+    document.body.appendChild(pin);
 
-    pin.onmouseenter = () => { pin.style.transform = "scale(1.2)"; pin.style.background = "#2563eb"; };
-    pin.onmouseleave = () => { pin.style.transform = ""; pin.style.background = "#3b82f6"; };
+    pin.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.taskPanel.show(task, this.projectId, this.config.apiUrl);
+    });
+
+    this.pinCleanups.push(() => pin.remove());
+  }
+
+  /** Legacy pin — anchored to element top-right corner. */
+  private createPinOnElement(el: HTMLElement, task: EmbedTask) {
+    const pin = this.buildPinEl(task);
+    pin.style.position = "absolute";
     document.body.appendChild(pin);
 
     const updatePos = () => {
@@ -167,7 +179,29 @@ export class PunchBug {
     });
   }
 
-  /** Called after a new task is submitted so pins refresh without page reload */
+  private buildPinEl(task: EmbedTask): HTMLButtonElement {
+    const pin = document.createElement("button");
+    pin.setAttribute("data-punchbug-ignore", "true");
+    pin.textContent = String(task.taskNumber);
+    pin.style.cssText =
+      "z-index:2147483644;background:hsl(348,100%,52%);color:#fff;" +
+      "border:2px solid #fff;border-radius:50%;width:22px;height:22px;" +
+      "font-size:10px;font-weight:700;cursor:pointer;display:flex;" +
+      "align-items:center;justify-content:center;padding:0;" +
+      "box-shadow:0 2px 6px rgba(0,0,0,0.35);font-family:sans-serif;" +
+      "line-height:1;transition:transform 0.15s,background 0.15s;";
+
+    pin.onmouseenter = () => {
+      pin.style.transform = "scale(1.2)";
+      pin.style.background = "hsl(348,100%,42%)";
+    };
+    pin.onmouseleave = () => {
+      pin.style.transform = "";
+      pin.style.background = "hsl(348,100%,52%)";
+    };
+    return pin;
+  }
+
   refreshPins() {
     this.fetchPageTasks();
   }
@@ -183,10 +217,12 @@ export class PunchBug {
   private startPicking() {
     this.isPicking = true;
     this.triggerBtn.classList.add("pb-active");
-    this.triggerBtn.title = "Click any element — press Esc to cancel";
+    this.triggerBtn.title = "Click anywhere — Esc to cancel";
+    const span = this.triggerBtn.querySelector("span");
+    if (span) span.textContent = "Cancel";
 
     this.picker = new ElementPicker(
-      (el) => this.onElementPicked(el),
+      (result) => this.onElementPicked(result),
       () => this.stopPicking()
     );
     this.picker.start();
@@ -196,29 +232,37 @@ export class PunchBug {
     this.isPicking = false;
     this.triggerBtn.classList.remove("pb-active");
     this.triggerBtn.title = "Report a task";
+    const span = this.triggerBtn.querySelector("span");
+    if (span) span.textContent = "Report";
     this.picker?.stop();
     this.picker = null;
   }
 
-  private async onElementPicked(el: HTMLElement) {
+  private async onElementPicked({ el, pageX, pageY }: PickResult) {
     this.stopPicking();
 
     const domInfo = getDomInfo(el);
     const browserMeta = getBrowserMeta();
     const pageUrl = window.location.href;
 
-    let screenshot = "";
+    let screenshotFull = "";
+    let screenshotThumb = "";
     try {
-      screenshot = await captureElement(el);
+      const result = await captureViewport(el);
+      screenshotFull = result.full;
+      screenshotThumb = result.thumb;
     } catch (e) {
       console.warn("PunchBug: screenshot failed", e);
     }
 
     new ReportForm(this.shadow, {
       domInfo,
-      screenshot,
+      screenshotFull,
+      screenshotThumb,
       browserMeta,
       pageUrl,
+      pinX: pageX,
+      pinY: pageY,
       embedKey: this.config.embedKey,
       apiUrl: this.config.apiUrl,
       columns: this.columns,

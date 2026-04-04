@@ -9,6 +9,8 @@ export interface ReportPayload {
   columnId?: string;
   tagIds?: string[];
   reporterName?: string;
+  pinX?: number;
+  pinY?: number;
   browserMeta: {
     browserName: string;
     browserVersion: string;
