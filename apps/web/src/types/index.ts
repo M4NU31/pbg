@@ -19,6 +19,7 @@ export interface EmbedReportPayload {
   domHtml: string;
   pageUrl: string;
   columnId?: string;
+  tagIds?: string[];
   reporterName?: string;
   guestName?: string;
   guestEmail?: string;

@@ -18,6 +18,12 @@ export interface BoardColumn {
   name: string;
 }
 
+export interface EmbedTag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface EmbedTask {
   id: string;
   taskNumber: number;
@@ -38,6 +44,7 @@ export class PunchBug {
   private picker: ElementPicker | null = null;
   private isPicking = false;
   private columns: BoardColumn[] = [];
+  private tags: EmbedTag[] = [];
   private taskPanel: TaskPanel;
   private projectId = "";
   private pinCleanups: (() => void)[] = [];
@@ -74,6 +81,7 @@ export class PunchBug {
     this.taskPanel = new TaskPanel(this.shadow);
 
     this.fetchColumns();
+    this.fetchTags();
     this.fetchPageTasks();
   }
 
@@ -83,6 +91,15 @@ export class PunchBug {
         `${this.config.apiUrl}/api/embed/columns?key=${encodeURIComponent(this.config.embedKey)}`
       );
       if (res.ok) this.columns = await res.json();
+    } catch { /* non-fatal */ }
+  }
+
+  private async fetchTags() {
+    try {
+      const res = await fetch(
+        `${this.config.apiUrl}/api/embed/tags?key=${encodeURIComponent(this.config.embedKey)}`
+      );
+      if (res.ok) this.tags = await res.json();
     } catch { /* non-fatal */ }
   }
 
@@ -205,6 +222,7 @@ export class PunchBug {
       embedKey: this.config.embedKey,
       apiUrl: this.config.apiUrl,
       columns: this.columns,
+      tags: this.tags,
       reporterName: this.config.reporterName,
       onSuccess: () => this.refreshPins(),
     });

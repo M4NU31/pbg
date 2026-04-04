@@ -7,9 +7,8 @@ import useSWR from "swr";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskDetail } from "@/components/tasks/TaskDetail";
 import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
-import { ArchivedTasksPanel } from "@/components/tasks/ArchivedTasksPanel";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings, Archive } from "lucide-react";
+import { Plus, Settings } from "lucide-react";
 import Link from "next/link";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -53,14 +52,8 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
     { refreshInterval: 30000 }
   );
 
-  const { data: archivedTasks = [], mutate: mutateArchived } = useSWR<any[]>(
-    `/api/projects/${projectId}/tasks?archived=true`,
-    fetcher
-  );
-
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(searchParams.get("task"));
   const [createInColumnId, setCreateInColumnId] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
   const [addingColLoading, setAddingColLoading] = useState(false);
@@ -189,18 +182,6 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
       <div className="flex items-center justify-between px-4 md:px-8 py-3 border-b bg-muted/30 gap-2">
         <div className="flex items-center gap-2 md:gap-3 min-w-0">
           <div className="text-sm text-muted-foreground shrink-0">{tasks.length} tasks</div>
-          {archivedTasks.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-muted-foreground gap-1.5 shrink-0"
-              onClick={() => setShowArchived(true)}
-            >
-              <Archive className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{archivedTasks.length} archived</span>
-              <span className="sm:hidden">{archivedTasks.length}</span>
-            </Button>
-          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {currentUserRole !== "CLIENT" && (
@@ -303,7 +284,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}
           onClose={closeTask}
-          onUpdate={() => { mutateTasks(); mutateArchived(); }}
+          onUpdate={() => { mutateTasks(); }}
         />
       )}
 
@@ -317,14 +298,6 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
         />
       )}
 
-      {showArchived && (
-        <ArchivedTasksPanel
-          projectId={projectId}
-          onClose={() => setShowArchived(false)}
-          onRestored={() => mutateTasks()}
-          onTaskClick={openTask}
-        />
-      )}
     </>
   );
 }

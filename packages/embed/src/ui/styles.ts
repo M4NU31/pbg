@@ -196,6 +196,29 @@ export const EMBED_STYLES = `
     cursor: crosshair !important;
   }
 
+  /* Tags */
+  .pb-tags-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .pb-tag-option {
+    cursor: pointer;
+  }
+
+  .pb-tag-pill {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: opacity 0.15s, font-weight 0.1s;
+    user-select: none;
+  }
+
   /* Success */
   .pb-success {
     text-align: center;

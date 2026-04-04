@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AssigneeStack } from "@/components/tasks/AssigneeSelect";
+import { TagPillRow } from "@/components/tasks/TagSelect";
 import { MessageSquare, Paperclip, Monitor, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,8 @@ export function TaskCard({ task, isDragging, onClick }: TaskCardProps) {
               )}
             </div>
           )}
+
+          {task.tags?.length > 0 && <TagPillRow tags={task.tags} size="xs" />}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -5,6 +5,27 @@ import { gravatarUrl } from "@/lib/gravatar";
 import { createNotification } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
+type Tag = { id: string; name: string; color: string };
+
+async function fetchTagMap(taskIds: string[]): Promise<Record<string, Tag[]>> {
+  if (!taskIds.length) return {};
+  try {
+    const placeholders = taskIds.map(() => "?").join(",");
+    const rows = await query<{ taskId: string; id: string; name: string; color: string }>(
+      `SELECT tt.taskId, t.id, t.name, t.color
+       FROM TaskTag tt JOIN Tag t ON tt.tagId = t.id
+       WHERE tt.taskId IN (${placeholders})`,
+      taskIds
+    );
+    const map: Record<string, Tag[]> = {};
+    for (const r of rows) {
+      if (!map[r.taskId]) map[r.taskId] = [];
+      map[r.taskId].push({ id: r.id, name: r.name, color: r.color });
+    }
+    return map;
+  } catch { return {}; }
+}
+
 type Params = { params: Promise<{ projectId: string }> };
 
 type Assignee = { id: string; name: string | null; email: string; image: string | null };
@@ -79,13 +100,17 @@ export async function GET(req: NextRequest, { params }: Params) {
     vals
   );
 
-  // Fetch assignees separately so a missing TaskAssignee table won't break task list
+  // Fetch assignees + tags separately so missing tables won't break task list
   const taskIds = rows.map((r) => r.id as string);
-  const assigneeMap = await fetchAssigneeMap(taskIds);
+  const [assigneeMap, tagMap] = await Promise.all([
+    fetchAssigneeMap(taskIds),
+    fetchTagMap(taskIds),
+  ]);
 
   return NextResponse.json(
     rows.map((row) => {
       const assignees = assigneeMap[row.id as string] ?? [];
+      const tags = tagMap[row.id as string] ?? [];
       // Fallback to legacy assigneeId column if join table is empty
       const legacyAssignee = !assignees.length && row.assigneeId
         ? { id: row.assigneeId as string, name: null, email: "", image: null }
@@ -103,6 +128,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         userAgent: row.userAgent, createdAt: row.createdAt, updatedAt: row.updatedAt,
         assignees,
         assignee: assignees[0] ?? legacyAssignee,
+        tags,
         creator: row.c_id ? { id: row.c_id, name: row.c_name } : null,
         _count: { comments: Number(row.commentCount), attachments: Number(row.attachmentCount) },
       };
@@ -119,8 +145,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const body = await req.json();
-  const { title, description, priority, assigneeIds, columnId } = body;
+  const { title, description, priority, assigneeIds, columnId, tagIds } = body;
   const resolvedIds: string[] = assigneeIds ?? (body.assigneeId ? [body.assigneeId] : []);
+  const resolvedTagIds: string[] = Array.isArray(tagIds) ? tagIds : [];
 
   if (!title?.trim()) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 });
@@ -160,6 +187,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       } catch { /* migration not run yet — ignore */ }
     }
 
+    // Insert tags — silently skip if table doesn't exist yet
+    for (const tid of resolvedTagIds) {
+      try {
+        await connExecute(conn, `INSERT IGNORE INTO TaskTag (taskId, tagId) VALUES (?, ?)`, [taskId, tid]);
+      } catch { /* migration not run yet — ignore */ }
+    }
+
     await connExecute(
       conn,
       `INSERT INTO Activity (id, taskId, actorId, actorName, type, createdAt) VALUES (?, ?, ?, ?, 'TASK_CREATED', NOW())`,
@@ -179,11 +213,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     [taskId]
   );
 
-  const assigneeMap = await fetchAssigneeMap([taskId]);
+  const [assigneeMap, tagMap] = await Promise.all([
+    fetchAssigneeMap([taskId]),
+    fetchTagMap([taskId]),
+  ]);
   const assignees = assigneeMap[taskId] ?? [];
+  const tags = tagMap[taskId] ?? [];
 
   return NextResponse.json(
-    { ...row, assignees, assignee: assignees[0] ?? null,
+    { ...row, assignees, assignee: assignees[0] ?? null, tags,
       creator: row!.c_id ? { id: row!.c_id, name: row!.c_name } : null,
       _count: { comments: 0, attachments: 0 } },
     { status: 201 }

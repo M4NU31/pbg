@@ -8,7 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AssigneeSelect } from "@/components/tasks/AssigneeSelect";
+import { TagSelect, Tag } from "@/components/tasks/TagSelect";
 import { toast } from "@/hooks/use-toast";
+import useSWR from "swr";
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
@@ -25,7 +29,10 @@ export function CreateTaskDialog({ projectId, defaultColumnId, members, onClose,
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("MEDIUM");
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const { data: projectTags = [] } = useSWR<Tag[]>(`/api/projects/${projectId}/tags`, fetcher);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +42,7 @@ export function CreateTaskDialog({ projectId, defaultColumnId, members, onClose,
       const res = await fetch(`/api/projects/${projectId}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, priority, assigneeIds, columnId: defaultColumnId }),
+        body: JSON.stringify({ title, description, priority, assigneeIds, tagIds, columnId: defaultColumnId }),
       });
       if (!res.ok) throw new Error();
       toast({ title: "Task created" });
@@ -91,6 +98,12 @@ export function CreateTaskDialog({ projectId, defaultColumnId, members, onClose,
               <AssigneeSelect members={members} selectedIds={assigneeIds} onChange={setAssigneeIds} />
             </div>
           </div>
+          {projectTags.length > 0 && (
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <TagSelect tags={projectTags} selectedIds={tagIds} onChange={setTagIds} />
+            </div>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={loading || !title.trim()}>

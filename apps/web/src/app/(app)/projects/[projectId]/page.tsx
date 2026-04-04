@@ -4,7 +4,7 @@ import { queryOne, query } from "@/lib/db";
 import { gravatarUrl } from "@/lib/gravatar";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { KanbanBoard } from "@/components/board/KanbanBoard";
+import { ProjectTabs } from "@/components/board/ProjectTabs";
 
 export default async function ProjectPage({
   params,
@@ -35,10 +35,11 @@ export default async function ProjectPage({
 
   if (!memberRow) notFound();
 
-  const memberUsers = await query<Record<string, unknown>>(
-    `SELECT u.id, u.name, u.email, u.image
+  const memberRows = await query<Record<string, unknown>>(
+    `SELECT pm.id, pm.role, u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image
      FROM ProjectMember pm JOIN User u ON pm.userId = u.id
-     WHERE pm.projectId = ?`,
+     WHERE pm.projectId = ?
+     ORDER BY pm.joinedAt ASC`,
     [projectId]
   );
 
@@ -48,25 +49,33 @@ export default async function ProjectPage({
     description: (memberRow.p_description as string | null) ?? null,
   };
 
+  const members = memberRows.map((u) => ({
+    id: u.u_id as string,
+    name: (u.u_name as string | null) ?? null,
+    email: u.u_email as string,
+    image: (u.u_image as string | null) ?? gravatarUrl(u.u_email as string),
+  }));
+
+  const allMembers = memberRows.map((row) => ({
+    id: row.id as string,
+    role: row.role as string,
+    user: {
+      id: row.u_id as string,
+      name: (row.u_name as string | null) ?? null,
+      email: row.u_email as string,
+      image: (row.u_image as string | null) ?? gravatarUrl(row.u_email as string),
+    },
+  }));
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-8 py-4 border-b">
-        <div>
-          <h1 className="text-xl font-bold">{project.name}</h1>
-          {project.description && (
-            <p className="text-sm text-muted-foreground">{project.description}</p>
-          )}
-        </div>
-      </div>
       <Suspense>
-        <KanbanBoard
+        <ProjectTabs
           projectId={project.id}
-          members={memberUsers.map((u) => ({
-            id: u.id as string,
-            name: (u.name as string | null) ?? null,
-            email: u.email as string,
-            image: (u.image as string | null) ?? gravatarUrl(u.email as string),
-          }))}
+          projectName={project.name}
+          projectDescription={project.description}
+          members={members}
+          allMembers={allMembers}
           currentUserId={session.user.id}
           currentUserRole={memberRow.role as string}
         />

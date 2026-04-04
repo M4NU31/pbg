@@ -5,6 +5,17 @@ import { gravatarUrl } from "@/lib/gravatar";
 import { createNotification } from "@/lib/notifications";
 import { randomUUID } from "crypto";
 
+type Tag = { id: string; name: string; color: string };
+
+async function fetchTaskTags(taskId: string): Promise<Tag[]> {
+  try {
+    return await query<Tag>(
+      `SELECT t.id, t.name, t.color FROM TaskTag tt JOIN Tag t ON tt.tagId = t.id WHERE tt.taskId = ?`,
+      [taskId]
+    );
+  } catch { return []; }
+}
+
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
 
 type Assignee = { id: string; name: string | null; email: string; image: string | null };
@@ -68,11 +79,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
     ),
   ]);
 
-  const assignees = await resolveAssignees(taskId, row.assigneeId as string | null);
+  const [assignees, tags] = await Promise.all([
+    resolveAssignees(taskId, row.assigneeId as string | null),
+    fetchTaskTags(taskId),
+  ]);
   return NextResponse.json({
     ...row,
     assignees,
     assignee: assignees[0] ?? null,
+    tags,
     creator: row.c_id ? { id: row.c_id, name: row.c_name } : null,
     comments: comments.map((c) => ({
       id: c.id, taskId: c.taskId, authorId: c.authorId, guestName: c.guestName,
@@ -93,7 +108,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const body = await req.json();
-  const { title, description, status, columnId, priority, assigneeIds, archive } = body;
+  const { title, description, status, columnId, priority, assigneeIds, archive, tagIds } = body;
+  const hasTagChange = Array.isArray(tagIds);
   // legacy single-id support (embed)
   const hasAssigneeChange = assigneeIds !== undefined || body.assigneeId !== undefined;
   const resolvedIds: string[] | null = assigneeIds !== undefined
@@ -177,6 +193,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         }
       } catch { /* TaskAssignee table not yet created — ignore */ }
     }
+
+    // Update tag join table — silently skip if migration not run yet
+    if (hasTagChange) {
+      try {
+        await connExecute(conn, `DELETE FROM TaskTag WHERE taskId = ?`, [taskId]);
+        for (const tid of tagIds) {
+          await connExecute(conn, `INSERT IGNORE INTO TaskTag (taskId, tagId) VALUES (?, ?)`, [taskId, tid]);
+        }
+      } catch { /* Tag tables not yet created — ignore */ }
+    }
   });
 
   // Notify newly added assignees
@@ -194,16 +220,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     [taskId]
   );
 
-  const [commentCount, attachmentCount, assignees] = await Promise.all([
+  const [commentCount, attachmentCount, assignees, tags] = await Promise.all([
     queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Comment WHERE taskId = ?`, [taskId]),
     queryOne<{ cnt: number }>(`SELECT COUNT(*) as cnt FROM Attachment WHERE taskId = ?`, [taskId]),
     resolveAssignees(taskId, row!.assigneeId as string | null),
+    fetchTaskTags(taskId),
   ]);
 
   return NextResponse.json({
     ...row,
     assignees,
     assignee: assignees[0] ?? null,
+    tags,
     _count: { comments: Number(commentCount?.cnt ?? 0), attachments: Number(attachmentCount?.cnt ?? 0) },
   });
 }

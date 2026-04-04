@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, reporterName, guestName, guestEmail, browserMeta } = body;
+  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, tagIds, reporterName, guestName, guestEmail, browserMeta } = body;
+  const resolvedTagIds: string[] = Array.isArray(tagIds) ? tagIds : [];
 
   if (!embedKey || !title || !domSelector || !pageUrl) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400, headers: CORS_HEADERS });
@@ -120,6 +121,13 @@ export async function POST(req: NextRequest) {
       `INSERT INTO Activity (id, taskId, actorName, type, createdAt) VALUES (?, ?, ?, 'TASK_CREATED', NOW())`,
       [activityId, taskId, reporterName || guestName || "Guest"]
     );
+
+    // Insert tags — silently skip if table doesn't exist yet
+    for (const tid of resolvedTagIds) {
+      try {
+        await connExecute(conn, `INSERT IGNORE INTO TaskTag (taskId, tagId) VALUES (?, ?)`, [taskId, tid]);
+      } catch { /* ignore */ }
+    }
 
     return num;
   });

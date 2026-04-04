@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatRelativeTime } from "@/lib/utils";
 import { X, Monitor, Globe, Maximize2, Paperclip, Archive, Trash2, Link2, ArchiveRestore, Pencil, Check, ExternalLink } from "lucide-react";
 import { AssigneeSelect } from "@/components/tasks/AssigneeSelect";
+import { TagSelect, Tag } from "@/components/tasks/TagSelect";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -61,6 +62,10 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
   const { data: task, mutate } = useSWR(`/api/projects/${projectId}/tasks/${taskId}`, fetcher);
   const { data: columns = [] } = useSWR<{ id: string; name: string }[]>(
     `/api/projects/${projectId}/columns`,
+    fetcher
+  );
+  const { data: projectTags = [] } = useSWR<Tag[]>(
+    `/api/projects/${projectId}/tags`,
     fetcher
   );
 
@@ -400,6 +405,19 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
                 />
               </div>
             </div>
+
+            {/* Tags */}
+            {projectTags.length > 0 && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tags</label>
+                <TagSelect
+                  tags={projectTags}
+                  selectedIds={(task.tags ?? []).map((t: Tag) => t.id)}
+                  onChange={(ids) => updateTask({ tagIds: ids })}
+                  size="sm"
+                />
+              </div>
+            )}
 
             {/* Description — inline edit */}
             <div>

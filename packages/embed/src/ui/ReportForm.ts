@@ -1,6 +1,6 @@
 import { DomInfo } from "../capture/domInfo";
 import { BrowserMeta } from "../capture/browserMeta";
-import { BoardColumn } from "../core/PunchBug";
+import { BoardColumn, EmbedTag } from "../core/PunchBug";
 import { submitReport } from "../api/reporter";
 
 interface FormData {
@@ -11,6 +11,7 @@ interface FormData {
   embedKey: string;
   apiUrl: string;
   columns: BoardColumn[];
+  tags: EmbedTag[];
   reporterName?: string;
   onSuccess?: () => void;
 }
@@ -38,6 +39,22 @@ export class ReportForm {
             <select class="pb-input" id="pb-column">
               ${data.columns.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
             </select>
+           </div>`
+        : "";
+
+    const tagSelect =
+      data.tags.length > 0
+        ? `<div class="pb-field">
+            <label class="pb-label">Tags</label>
+            <div class="pb-tags-grid" id="pb-tags">
+              ${data.tags.map((t) => `
+                <label class="pb-tag-option" style="--tag-color:${t.color}">
+                  <input type="checkbox" class="pb-tag-cb" value="${t.id}" style="display:none" />
+                  <span class="pb-tag-pill" data-tag-id="${t.id}" style="background:${t.color}22;color:${t.color};border:1px solid ${t.color}55">
+                    ${t.name}
+                  </span>
+                </label>`).join("")}
+            </div>
            </div>`
         : "";
 
@@ -74,6 +91,7 @@ export class ReportForm {
           <textarea class="pb-textarea" id="pb-desc" placeholder="Steps to reproduce, expected vs actual behavior..."></textarea>
         </div>
         ${columnSelect}
+        ${tagSelect}
         <button class="pb-submit-btn" id="pb-submit">Submit Task</button>
       </div>
 
@@ -95,6 +113,24 @@ export class ReportForm {
       if (e.target === overlay) this.close();
     });
 
+    // Tag pill toggle interaction
+    if (data.tags.length > 0) {
+      const tagPills = this.shadow.querySelectorAll<HTMLSpanElement>(".pb-tag-pill");
+      tagPills.forEach((pill) => {
+        pill.style.cursor = "pointer";
+        pill.addEventListener("click", () => {
+          const tagId = pill.dataset.tagId!;
+          const cb = this.shadow.querySelector<HTMLInputElement>(`.pb-tag-cb[value="${tagId}"]`);
+          if (!cb) return;
+          cb.checked = !cb.checked;
+          pill.style.opacity = cb.checked ? "1" : "0.5";
+          pill.style.fontWeight = cb.checked ? "600" : "400";
+        });
+        // start unchecked / dimmed
+        pill.style.opacity = "0.55";
+      });
+    }
+
     const submitBtn = this.shadow.getElementById("pb-submit") as HTMLButtonElement;
     submitBtn?.addEventListener("click", async () => {
       const title = (this.shadow.getElementById("pb-title") as HTMLInputElement).value.trim();
@@ -107,6 +143,10 @@ export class ReportForm {
       const columnId = data.columns.length > 0
         ? (this.shadow.getElementById("pb-column") as HTMLSelectElement).value
         : undefined;
+
+      const tagIds = data.tags.length > 0
+        ? Array.from(this.shadow.querySelectorAll<HTMLInputElement>(".pb-tag-cb:checked")).map((cb) => cb.value)
+        : [];
 
       submitBtn.disabled = true;
       submitBtn.textContent = "Submitting...";
@@ -121,6 +161,7 @@ export class ReportForm {
           domHtml: data.domInfo.outerHtml,
           pageUrl: data.pageUrl,
           columnId,
+          tagIds: tagIds.length > 0 ? tagIds : undefined,
           reporterName: data.reporterName,
           browserMeta: data.browserMeta,
         });

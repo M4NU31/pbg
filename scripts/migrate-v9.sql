@@ -1,0 +1,18 @@
+-- v9: Tags per project + TaskTag join table
+
+CREATE TABLE IF NOT EXISTS Tag (
+  id         VARCHAR(36)  NOT NULL PRIMARY KEY,
+  projectId  VARCHAR(36)  NOT NULL,
+  name       VARCHAR(100) NOT NULL,
+  color      VARCHAR(20)  NOT NULL DEFAULT '#6366f1',
+  createdAt  DATETIME     NOT NULL DEFAULT NOW(),
+  FOREIGN KEY (projectId) REFERENCES Project(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS TaskTag (
+  taskId  VARCHAR(36) NOT NULL,
+  tagId   VARCHAR(36) NOT NULL,
+  PRIMARY KEY (taskId, tagId),
+  FOREIGN KEY (taskId) REFERENCES Task(id) ON DELETE CASCADE,
+  FOREIGN KEY (tagId)  REFERENCES Tag(id)  ON DELETE CASCADE
+);
