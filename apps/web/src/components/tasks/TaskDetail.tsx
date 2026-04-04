@@ -189,12 +189,23 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !editingTitle && !editingDesc) onClose(); };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose, editingTitle, editingDesc]);
+
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [onClose]);
 
   // ── API helpers ──────────────────────────────────────────────────
   async function updateTask(data: Record<string, unknown>) {
@@ -317,7 +328,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
 
   return (
     <>
-      <div className="fixed inset-y-0 right-0 w-full md:w-[620px] bg-background border-l shadow-xl z-50 flex flex-col overflow-hidden">
+      <div ref={panelRef} className="fixed inset-y-0 right-0 w-full md:w-[620px] bg-background border-l shadow-xl z-50 flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
