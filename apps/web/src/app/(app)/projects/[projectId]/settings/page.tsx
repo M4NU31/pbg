@@ -2,9 +2,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { queryOne } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { EmbedSnippet } from "@/components/projects/EmbedSnippet";
 import { ProjectSettingsForm } from "@/components/projects/ProjectSettingsForm";
 import { Separator } from "@/components/ui/separator";
+import { ArrowLeft } from "lucide-react";
 
 export default async function ProjectSettingsPage({
   params,
@@ -55,6 +57,13 @@ export default async function ProjectSettingsPage({
   return (
     <div className="p-8 max-w-2xl space-y-10">
       <div>
+        <Link
+          href={`/projects/${projectId}`}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-3 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to project
+        </Link>
         <h1 className="text-2xl font-bold">Project Settings</h1>
         <p className="text-muted-foreground">Manage {project.name}</p>
       </div>
