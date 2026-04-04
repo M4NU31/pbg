@@ -9,6 +9,10 @@ export type SystemRole = "ADMIN" | "PROJECT_MANAGER" | "MEMBER";
 // Bootstrap: the hardcoded super-admin email is always treated as ADMIN
 const BOOTSTRAP_ADMIN_EMAIL = "manuel@punchteam.com";
 
+const ROLE_NORM: Record<string, string> = {
+  RANK1: "ADMIN", RANK2: "PROJECT_MANAGER", RANK3: "MEMBER",
+};
+
 export async function getSystemRole(userId: string, email?: string | null): Promise<SystemRole> {
   if (email === BOOTSTRAP_ADMIN_EMAIL) return "ADMIN";
   try {
@@ -16,7 +20,9 @@ export async function getSystemRole(userId: string, email?: string | null): Prom
       `SELECT systemRole FROM User WHERE id = ?`,
       [userId]
     );
-    return (row?.systemRole as SystemRole) ?? "MEMBER";
+    const raw = row?.systemRole;
+    if (!raw) return "MEMBER";
+    return (ROLE_NORM[raw] ?? raw) as SystemRole;
   } catch {
     return "MEMBER";
   }
@@ -89,6 +95,7 @@ export async function requireProjectAccess(
     };
   }
 
+  // Check project membership exists
   const row = await queryOne<Record<string, unknown>>(
     `SELECT pm.id, pm.projectId, pm.userId, pm.role, pm.joinedAt,
      p.id as p_id, p.name as p_name, p.description as p_description,
@@ -103,9 +110,10 @@ export async function requireProjectAccess(
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }), member: null };
   }
 
-  // External (non-punchteam) emails are always CLIENT regardless of DB value
+  // External (non-punchteam) emails are always CLIENT
+  // Internal users get their permissions from systemRole — ProjectMember.role is only for membership tracking
   const isExternal = !session?.user?.email?.endsWith("@punchteam.com");
-  const effectiveRole = isExternal ? "CLIENT" : (row.role as string);
+  const effectiveRole = isExternal ? "CLIENT" : systemRole;
 
   return {
     error: null,

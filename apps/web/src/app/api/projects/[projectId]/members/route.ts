@@ -17,18 +17,34 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (accessError) return accessError;
 
   const rows = await query<Record<string, unknown>>(
-    `SELECT pm.*, u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image
+    `SELECT pm.id, pm.projectId, pm.userId, pm.role, pm.joinedAt,
+     u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image, u.systemRole as u_systemRole
      FROM ProjectMember pm JOIN User u ON pm.userId = u.id
      WHERE pm.projectId = ?
      ORDER BY pm.joinedAt ASC`,
     [projectId]
   );
 
+  const ROLE_NORM: Record<string, string> = {
+    RANK1: "ADMIN", RANK2: "PROJECT_MANAGER", RANK3: "MEMBER", OWNER: "PROJECT_MANAGER",
+  };
+
   return NextResponse.json(
-    rows.map((row) => ({
-      id: row.id, projectId: row.projectId, userId: row.userId, role: row.role, joinedAt: row.joinedAt,
-      user: { id: row.u_id, name: row.u_name, email: row.u_email, image: row.u_image },
-    }))
+    rows.map((row) => {
+      const email = row.u_email as string;
+      let effectiveRole: string;
+      if (!email.endsWith("@punchteam.com")) {
+        effectiveRole = "CLIENT";
+      } else {
+        const raw = row.u_systemRole as string | null;
+        effectiveRole = raw ? (ROLE_NORM[raw] ?? raw) : "MEMBER";
+      }
+      return {
+        id: row.id, projectId: row.projectId, userId: row.userId,
+        role: effectiveRole, joinedAt: row.joinedAt,
+        user: { id: row.u_id, name: row.u_name, email: row.u_email, image: row.u_image },
+      };
+    })
   );
 }
 

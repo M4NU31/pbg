@@ -62,18 +62,18 @@ export default async function ProjectPage({
   const ROLE_NORM: Record<string, string> = {
     RANK1: "ADMIN", RANK2: "PROJECT_MANAGER", RANK3: "MEMBER", OWNER: "PROJECT_MANAGER",
   };
+  const BOOTSTRAP_ADMIN = "manuel@punchteam.com";
 
   const allMembers = memberRows.map((row) => {
     const email = row.u_email as string;
     let effectiveRole: string;
     if (!email.endsWith("@punchteam.com")) {
       effectiveRole = "CLIENT";
+    } else if (email === BOOTSTRAP_ADMIN) {
+      effectiveRole = "ADMIN";
     } else {
-      // Use system role (source of truth) to determine eligibility for ownership
-      const sysRaw = row.u_systemRole as string | null;
-      const sysRole = sysRaw ? (ROLE_NORM[sysRaw] ?? sysRaw) : "MEMBER";
-      // Bootstrap admin always ADMIN
-      effectiveRole = email === "manuel@punchteam.com" ? "ADMIN" : sysRole;
+      const raw = row.u_systemRole as string | null;
+      effectiveRole = raw ? (ROLE_NORM[raw] ?? raw) : "MEMBER";
     }
     return {
       id: row.id as string,
