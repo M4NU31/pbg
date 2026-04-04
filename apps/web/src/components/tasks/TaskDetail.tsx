@@ -44,8 +44,8 @@ function mentionsToPlain(body: string): string {
 /** Renders comment text with mentions highlighted.
  *  Handles both structured @[Name](userId) and legacy plain @Name formats. */
 function CommentBody({ body }: { body: string }) {
-  // Match structured @[Name](userId) OR plain @Word mentions
-  const pattern = /@\[([^\]]+)\]\([^)]+\)|@([\w][^\s@]*(?:\s[\w][^\s@]*)*)/g;
+  // Match structured @[Name](userId) first, then plain @Word (at most 2 words for legacy)
+  const pattern = /@\[([^\]]+)\]\([^)]+\)|@([\w][^\s@]*(?:\s[\w][^\s@]*)?)/g;
   const parts: React.ReactNode[] = [];
   let last = 0;
   let match: RegExpExecArray | null;
@@ -211,8 +211,12 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
         const target = e.target as HTMLElement;
         if (
           target.closest('[role="dialog"]') ||
+          target.closest('[role="listbox"]') ||
+          target.closest('[role="option"]') ||
           target.closest('[data-radix-portal]') ||
-          document.querySelector('[role="dialog"][data-state="open"]')
+          target.closest('[data-radix-popper-content-wrapper]') ||
+          document.querySelector('[role="dialog"][data-state="open"]') ||
+          document.querySelector('[data-radix-popper-content-wrapper]')
         ) return;
         onClose();
       }

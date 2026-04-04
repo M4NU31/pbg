@@ -129,9 +129,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (archive !== undefined) {
       return NextResponse.json({ error: "Members and clients cannot archive tasks" }, { status: 403 });
     }
-    // Allow editing only if they created or are assigned to this task
-    const isEditing = title !== undefined || description !== undefined || priority !== undefined || assigneeIds !== undefined;
-    if (isEditing) {
+    // Restrict title/description/priority edits to own tasks only (assigneeIds is open to all)
+    const isRestrictedEdit = title !== undefined || description !== undefined || priority !== undefined;
+    if (isRestrictedEdit) {
       const isAssigned = await queryOne<{ cnt: number }>(
         `SELECT COUNT(*) as cnt FROM TaskAssignee WHERE taskId = ? AND userId = ?`, [taskId, userId]
       ).catch(() => null);
