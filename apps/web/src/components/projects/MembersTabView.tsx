@@ -352,8 +352,10 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
           </div>
         ))}
 
-        {/* Pending invitations */}
-        {clients.filter((c) => !c.joined).map((inv) => (
+        {/* Pending invitations — exclude any email already shown as joined above */}
+        {clients.filter((c) => !c.joined && !clientMembers.some(
+          (m) => m.user.email.toLowerCase() === c.email.toLowerCase()
+        )).map((inv) => (
           <div key={inv.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card opacity-70">
             <UserAvatar name={null} email={inv.email} image={null} className="h-8 w-8 shrink-0" />
             <div className="flex-1 min-w-0">
@@ -375,7 +377,7 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
           </div>
         ))}
 
-        {clientMembers.length === 0 && clients.filter((c) => !c.joined).length === 0 && (
+        {clientMembers.length === 0 && clients.filter((c) => !c.joined && !clientMembers.some((m) => m.user.email.toLowerCase() === c.email.toLowerCase())).length === 0 && (
           <p className="text-sm text-muted-foreground py-8 text-center">No clients yet.</p>
         )}
       </div>

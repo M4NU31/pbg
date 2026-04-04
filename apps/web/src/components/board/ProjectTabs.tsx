@@ -102,6 +102,7 @@ export function ProjectTabs({
           />
         )}
         {activeTab === "archived" && (
+          <div className="flex-1 overflow-y-auto">
           <ArchivedTasksView
             projectId={projectId}
             currentUserRole={currentUserRole}
@@ -112,6 +113,7 @@ export function ProjectTabs({
               router.replace(`?${params.toString()}`, { scroll: false });
             }}
           />
+          </div>
         )}
         {activeTab === "tags" && (
           <div className="flex-1 overflow-y-auto">

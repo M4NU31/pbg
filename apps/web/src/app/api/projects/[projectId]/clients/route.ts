@@ -24,13 +24,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     [projectId]
   );
 
-  // Also return which emails have already joined (have a CLIENT member row)
+  // Any external user with ANY membership in this project is considered joined
   const joined = await query<{ email: string }>(
     `SELECT u.email FROM ProjectMember pm JOIN User u ON pm.userId = u.id
-     WHERE pm.projectId = ? AND pm.role = 'CLIENT'`,
+     WHERE pm.projectId = ? AND u.email NOT LIKE '%@punchteam.com'`,
     [projectId]
   );
-  const joinedEmails = new Set(joined.map((r) => r.email));
+  const joinedEmails = new Set(joined.map((r) => (r.email as string).toLowerCase()));
 
   return NextResponse.json(
     rows.map((r) => ({
@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       email: r.email,
       inviterName: r.inviterName,
       createdAt: r.createdAt,
-      joined: joinedEmails.has(r.email as string),
+      joined: joinedEmails.has((r.email as string).toLowerCase()),
     }))
   );
 }
@@ -83,14 +83,20 @@ export async function POST(req: NextRequest, { params }: Params) {
     [normalizedEmail]
   );
   if (existingUser) {
-    const memberExists = await queryOne(
-      `SELECT id FROM ProjectMember WHERE projectId = ? AND userId = ?`,
+    const memberExists = await queryOne<{ id: string; role: string }>(
+      `SELECT id, role FROM ProjectMember WHERE projectId = ? AND userId = ?`,
       [projectId, existingUser.id]
     );
     if (!memberExists) {
       await execute(
         `INSERT INTO ProjectMember (id, projectId, userId, role, joinedAt) VALUES (?, ?, ?, 'CLIENT', NOW())`,
         [randomUUID(), projectId, existingUser.id]
+      );
+    } else if (memberExists.role !== "CLIENT") {
+      // Downgrade any pre-existing membership to CLIENT
+      await execute(
+        `UPDATE ProjectMember SET role = 'CLIENT' WHERE id = ?`,
+        [memberExists.id]
       );
     }
   }
