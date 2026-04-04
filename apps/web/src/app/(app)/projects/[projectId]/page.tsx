@@ -59,10 +59,19 @@ export default async function ProjectPage({
       image: (u.u_image as string | null) ?? gravatarUrl(u.u_email as string),
     }));
 
+  const PROJECT_ROLE_MAP: Record<string, string> = {
+    OWNER: "PROJECT_MANAGER", RANK1: "ADMIN", RANK2: "PROJECT_MANAGER", RANK3: "MEMBER",
+  };
+
   const allMembers = memberRows.map((row) => {
     const email = row.u_email as string;
-    // Normalize: external (non-punchteam) emails are always CLIENT regardless of DB value
-    const effectiveRole = !email.endsWith("@punchteam.com") ? "CLIENT" : (row.role as string);
+    let effectiveRole: string;
+    if (!email.endsWith("@punchteam.com")) {
+      effectiveRole = "CLIENT";
+    } else {
+      const raw = row.role as string;
+      effectiveRole = PROJECT_ROLE_MAP[raw] ?? raw;
+    }
     return {
       id: row.id as string,
       role: effectiveRole,
