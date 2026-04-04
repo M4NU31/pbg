@@ -49,7 +49,7 @@ export function NotificationsClient({
   function handleClick(n: Notification) {
     if (!n.projectId || !n.taskId) return;
     markRead(n.id);
-    router.push(`/projects/${n.projectId}?task=${n.taskId}`);
+    router.push(`/projects/${n.projectId}?tab=tasks&task=${n.taskId}`);
   }
 
   function getIcon(type: Notification["type"]) {

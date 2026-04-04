@@ -54,6 +54,11 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(searchParams.get("task"));
   const [createInColumnId, setCreateInColumnId] = useState<string | null>(null);
+
+  // Sync task panel with URL — handles navigation from notifications while on the same page
+  useEffect(() => {
+    setSelectedTaskId(searchParams.get("task"));
+  }, [searchParams]);
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
   const [addingColLoading, setAddingColLoading] = useState(false);

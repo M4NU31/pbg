@@ -67,7 +67,7 @@ export function NotificationBell() {
     if (!n.projectId || !n.taskId) return;
     markRead(n.id);
     setOpen(false);
-    router.push(`/projects/${n.projectId}?task=${n.taskId}`);
+    router.push(`/projects/${n.projectId}?tab=tasks&task=${n.taskId}`);
   }
 
   function getIcon(type: Notification["type"]) {
