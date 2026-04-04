@@ -14,7 +14,8 @@ export interface EmbedReportPayload {
   embedKey: string;
   title: string;
   description?: string;
-  screenshot: string; // base64 PNG — full viewport screenshot
+  screenshot?: string;    // base64 PNG — full viewport screenshot (mutually exclusive with screenshotUrl)
+  screenshotUrl?: string; // pre-built URL from screenshot server (mutually exclusive with screenshot)
   domSelector: string;
   pinX?: number; // page X coordinate (px) where user clicked
   pinY?: number; // page Y coordinate (px) where user clicked

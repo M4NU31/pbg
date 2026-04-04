@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { embedKey, title, description, screenshot, domSelector, domHtml, pageUrl, columnId, tagIds, reporterName, guestName, guestEmail, browserMeta, pinX, pinY } = body;
+  const { embedKey, title, description, screenshot, screenshotUrl: incomingScreenshotUrl, domSelector, domHtml, pageUrl, columnId, tagIds, reporterName, guestName, guestEmail, browserMeta, pinX, pinY } = body as typeof body & { screenshotUrl?: string };
   const resolvedTagIds: string[] = Array.isArray(tagIds) ? tagIds : [];
 
   if (!embedKey || !title || !domSelector || !pageUrl) {
@@ -50,9 +50,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Upload screenshot
+  // Upload screenshot (base64 or download from screenshot server URL)
   let screenshotUrl: string | undefined;
-  if (screenshot) {
+  if (incomingScreenshotUrl) {
+    // Screenshot server provided a URL — download and re-upload to permanent storage
+    try {
+      const imgRes = await fetch(incomingScreenshotUrl);
+      if (imgRes.ok) {
+        const buffer = Buffer.from(await imgRes.arrayBuffer());
+        screenshotUrl = await uploadFile(buffer, `screenshot-${Date.now()}.png`, "image/png");
+      }
+    } catch (err) {
+      console.error("Screenshot download/re-upload failed:", err);
+    }
+  } else if (screenshot) {
     try {
       const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");

@@ -98,6 +98,31 @@ export const EMBED_STYLES = `
     background: #f3f4f6;
   }
 
+  /* Screenshot loading placeholder */
+  .pb-sc-loader {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    background: #fafafa;
+  }
+
+  .pb-sc-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e5e7eb;
+    border-top-color: hsl(348,100%,52%);
+    border-radius: 50%;
+    animation: pb-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pb-spin {
+    to { transform: rotate(360deg); }
+  }
+
   /* Screenshot thumbnail with expand button */
   .pb-screenshot-wrap {
     position: relative;

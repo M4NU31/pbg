@@ -3,10 +3,8 @@ import { BrowserMeta } from "../capture/browserMeta";
 import { BoardColumn, EmbedTag } from "../core/PunchBug";
 import { submitReport } from "../api/reporter";
 
-interface FormData {
+interface FormOptions {
   domInfo: DomInfo;
-  screenshotFull: string;  // base64 PNG — sent to API / shown in lightbox
-  screenshotThumb: string; // base64 PNG — thumbnail shown in form
   browserMeta: BrowserMeta;
   pageUrl: string;
   pinX: number;
@@ -23,56 +21,81 @@ interface FormData {
 export class ReportForm {
   private shadow: ShadowRoot;
   private overlay: HTMLElement;
+  /** The full screenshot (data-URL or server URL) set asynchronously */
+  private screenshotFull = "";
+  private opts: FormOptions;
 
-  constructor(shadow: ShadowRoot, data: FormData) {
+  constructor(shadow: ShadowRoot, opts: FormOptions) {
     this.shadow = shadow;
-    this.overlay = this.render(data);
+    this.opts   = opts;
+    this.overlay = this.render(opts);
   }
 
-  private render(data: FormData): HTMLElement {
+  // ── Public: inject screenshot after async capture ───────────────────────
+
+  /**
+   * Called when the screenshot is ready.
+   * `full`  — data-URL or server URL (sent to report API)
+   * `thumb` — data-URL for the preview thumbnail (optional; falls back to full)
+   */
+  setScreenshot(full: string, thumb?: string) {
+    this.screenshotFull = full;
+
+    const loader  = this.shadow.getElementById("pb-sc-loader");
+    const wrap    = this.shadow.getElementById("pb-sc-wrap") as HTMLElement | null;
+    const preview = this.shadow.getElementById("pb-sc-img")  as HTMLImageElement | null;
+
+    if (!full) {
+      // Screenshot failed — just hide the loader
+      loader?.remove();
+      return;
+    }
+
+    const displaySrc = thumb || full;
+    if (preview) preview.src = displaySrc;
+
+    if (loader) loader.style.display  = "none";
+    if (wrap)   wrap.style.display    = "block";
+
+    // Wire expand button now that we have the full image
+    if (full) {
+      this.shadow.getElementById("pb-sc-expand")?.addEventListener("click", () => {
+        this.openLightbox(full);
+      });
+    }
+  }
+
+  // ── Private: render ──────────────────────────────────────────────────────
+
+  private render(opts: FormOptions): HTMLElement {
     const overlay = document.createElement("div");
     overlay.className = "pb-overlay";
 
     const card = document.createElement("div");
     card.className = "pb-form-card";
 
-    const columnSelect =
-      data.columns.length > 0
-        ? `<div class="pb-field">
-            <label class="pb-label" for="pb-column">Add to column</label>
-            <select class="pb-input" id="pb-column">
-              ${data.columns.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
-            </select>
-           </div>`
-        : "";
+    const columnSelect = opts.columns.length > 0
+      ? `<div class="pb-field">
+           <label class="pb-label" for="pb-column">Add to column</label>
+           <select class="pb-input" id="pb-column">
+             ${opts.columns.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
+           </select>
+         </div>`
+      : "";
 
-    const tagSelect =
-      data.tags.length > 0
-        ? `<div class="pb-field">
-            <label class="pb-label">Tags</label>
-            <div class="pb-tags-grid" id="pb-tags">
-              ${data.tags.map((t) => `
-                <label class="pb-tag-option" style="--tag-color:${t.color}">
-                  <input type="checkbox" class="pb-tag-cb" value="${t.id}" style="display:none" />
-                  <span class="pb-tag-pill" data-tag-id="${t.id}" style="background:${t.color}22;color:${t.color};border:1px solid ${t.color}55">
-                    ${t.name}
-                  </span>
-                </label>`).join("")}
-            </div>
-           </div>`
-        : "";
-
-    const screenshotHtml = data.screenshotThumb
-      ? `<div class="pb-screenshot-wrap">
-           <img class="pb-screenshot-preview" src="${data.screenshotThumb}" alt="Screenshot" />
-           <button class="pb-screenshot-expand" id="pb-expand-btn" title="View full screenshot">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-               <polyline points="15 3 21 3 21 9"></polyline>
-               <polyline points="9 21 3 21 3 15"></polyline>
-               <line x1="21" y1="3" x2="14" y2="10"></line>
-               <line x1="3" y1="21" x2="10" y2="14"></line>
-             </svg>
-           </button>
+    const tagSelect = opts.tags.length > 0
+      ? `<div class="pb-field">
+           <label class="pb-label">Tags</label>
+           <div class="pb-tags-grid" id="pb-tags">
+             ${opts.tags.map((t) => `
+               <label class="pb-tag-option">
+                 <input type="checkbox" class="pb-tag-cb" value="${t.id}" style="display:none" />
+                 <span class="pb-tag-pill" data-tag-id="${t.id}"
+                       style="background:${t.color}22;color:${t.color};border:1px solid ${t.color}55">
+                   ${t.name}
+                 </span>
+               </label>`).join("")}
+           </div>
          </div>`
       : "";
 
@@ -82,31 +105,50 @@ export class ReportForm {
         <button class="pb-close-btn" id="pb-close">&#x2715;</button>
       </div>
 
-      ${screenshotHtml}
+      <!-- Screenshot area: loader shown first, image injected async -->
+      <div id="pb-sc-loader" class="pb-sc-loader">
+        <span class="pb-sc-spinner"></span>
+        <span style="font-size:12px;color:#9ca3af;margin-left:8px">Capturing screenshot…</span>
+      </div>
+      <div id="pb-sc-wrap" class="pb-screenshot-wrap" style="display:none">
+        <img id="pb-sc-img" class="pb-screenshot-preview" alt="Screenshot" />
+        <button class="pb-screenshot-expand" id="pb-sc-expand" title="View full screenshot">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+        </button>
+      </div>
 
       <div class="pb-info-box">
         <div class="pb-info-row">
           <span>&#127760;</span>
-          <span style="word-break:break-all">${data.pageUrl}</span>
+          <span style="word-break:break-all">${opts.pageUrl}</span>
         </div>
         <div class="pb-info-row">
           <span>&#128187;</span>
-          <span>${data.browserMeta.browserName} ${data.browserMeta.browserVersion} &bull; ${data.browserMeta.osName} &bull; ${data.browserMeta.screenWidth}&#xd7;${data.browserMeta.screenHeight}</span>
+          <span>${opts.browserMeta.browserName} ${opts.browserMeta.browserVersion}
+                &bull; ${opts.browserMeta.osName}
+                &bull; ${opts.browserMeta.screenWidth}&#xd7;${opts.browserMeta.screenHeight}</span>
         </div>
         <div class="pb-info-row">
           <span>&#128279;</span>
-          <code style="font-size:11px">${data.domInfo.selector}</code>
+          <code style="font-size:11px">${opts.domInfo.selector}</code>
         </div>
       </div>
 
       <div id="pb-report-form">
         <div class="pb-field">
           <label class="pb-label" for="pb-title">What happened? *</label>
-          <input class="pb-input" id="pb-title" type="text" placeholder="Button not responding, layout broken, etc." />
+          <input class="pb-input" id="pb-title" type="text"
+                 placeholder="Button not responding, layout broken, etc." />
         </div>
         <div class="pb-field">
           <label class="pb-label" for="pb-desc">More details</label>
-          <textarea class="pb-textarea" id="pb-desc" placeholder="Steps to reproduce, expected vs actual behavior..."></textarea>
+          <textarea class="pb-textarea" id="pb-desc"
+                    placeholder="Steps to reproduce, expected vs actual behavior…"></textarea>
         </div>
         ${columnSelect}
         ${tagSelect}
@@ -124,77 +166,71 @@ export class ReportForm {
     this.shadow.appendChild(overlay);
 
     // Close handlers
-    this.shadow.getElementById("pb-close")?.addEventListener("click", () => this.close(data.onClose));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) this.close(data.onClose); });
+    const doClose = () => this.close(opts.onClose);
+    this.shadow.getElementById("pb-close")?.addEventListener("click", doClose);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) doClose(); });
 
-    // Screenshot expand button → open lightbox with full screenshot
-    if (data.screenshotFull) {
-      this.shadow.getElementById("pb-expand-btn")?.addEventListener("click", () => {
-        this.openLightbox(data.screenshotFull);
+    // Tag pills
+    this.shadow.querySelectorAll<HTMLSpanElement>(".pb-tag-pill").forEach((pill) => {
+      pill.style.opacity = "0.55";
+      pill.addEventListener("click", () => {
+        const cb = this.shadow.querySelector<HTMLInputElement>(
+          `.pb-tag-cb[value="${pill.dataset.tagId}"]`
+        );
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        pill.style.opacity    = cb.checked ? "1"   : "0.55";
+        pill.style.fontWeight = cb.checked ? "600" : "400";
       });
-    }
+    });
 
-    // Tag pill toggle interaction
-    if (data.tags.length > 0) {
-      this.shadow.querySelectorAll<HTMLSpanElement>(".pb-tag-pill").forEach((pill) => {
-        pill.style.opacity = "0.55";
-        pill.addEventListener("click", () => {
-          const tagId = pill.dataset.tagId!;
-          const cb = this.shadow.querySelector<HTMLInputElement>(`.pb-tag-cb[value="${tagId}"]`);
-          if (!cb) return;
-          cb.checked = !cb.checked;
-          pill.style.opacity = cb.checked ? "1" : "0.55";
-          pill.style.fontWeight = cb.checked ? "600" : "400";
-        });
-      });
-    }
-
+    // Submit
     const submitBtn = this.shadow.getElementById("pb-submit") as HTMLButtonElement;
     submitBtn?.addEventListener("click", async () => {
       const title = (this.shadow.getElementById("pb-title") as HTMLInputElement).value.trim();
-      if (!title) {
-        (this.shadow.getElementById("pb-title") as HTMLInputElement).focus();
-        return;
-      }
+      if (!title) { (this.shadow.getElementById("pb-title") as HTMLInputElement).focus(); return; }
 
       const description = (this.shadow.getElementById("pb-desc") as HTMLTextAreaElement).value.trim();
-      const columnId = data.columns.length > 0
+      const columnId    = opts.columns.length > 0
         ? (this.shadow.getElementById("pb-column") as HTMLSelectElement).value
         : undefined;
-
-      const tagIds = data.tags.length > 0
-        ? Array.from(this.shadow.querySelectorAll<HTMLInputElement>(".pb-tag-cb:checked")).map((cb) => cb.value)
+      const tagIds = opts.tags.length > 0
+        ? Array.from(this.shadow.querySelectorAll<HTMLInputElement>(".pb-tag-cb:checked")).map((c) => c.value)
         : [];
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Submitting...";
+      submitBtn.disabled   = true;
+      submitBtn.textContent = "Submitting…";
 
       try {
-        await submitReport(data.apiUrl, {
-          embedKey: data.embedKey,
+        // If screenshotFull is a server URL (http…), pass it as screenshotUrl.
+        // If it's a data-URL (base64), pass it as screenshot for upload.
+        const isServerUrl = this.screenshotFull.startsWith("http");
+        await submitReport(opts.apiUrl, {
+          embedKey:      opts.embedKey,
           title,
-          description: description || undefined,
-          screenshot: data.screenshotFull,
-          domSelector: data.domInfo.selector,
-          domHtml: data.domInfo.outerHtml,
-          pageUrl: data.pageUrl,
+          description:   description || undefined,
+          screenshot:    isServerUrl ? undefined        : this.screenshotFull,
+          screenshotUrl: isServerUrl ? this.screenshotFull : undefined,
+          domSelector:   opts.domInfo.selector,
+          domHtml:       opts.domInfo.outerHtml,
+          pageUrl:       opts.pageUrl,
           columnId,
-          tagIds: tagIds.length > 0 ? tagIds : undefined,
-          reporterName: data.reporterName,
-          browserMeta: data.browserMeta,
-          pinX: data.pinX,
-          pinY: data.pinY,
+          tagIds:        tagIds.length > 0 ? tagIds : undefined,
+          reporterName:  opts.reporterName,
+          browserMeta:   opts.browserMeta,
+          pinX:          opts.pinX,
+          pinY:          opts.pinY,
         });
 
-        const formEl = this.shadow.getElementById("pb-report-form");
-        const successEl = this.shadow.getElementById("pb-success");
-        if (formEl) formEl.style.display = "none";
-        if (successEl) successEl.style.display = "block";
+        (this.shadow.getElementById("pb-report-form") as HTMLElement).style.display = "none";
+        (this.shadow.getElementById("pb-success")      as HTMLElement).style.display = "block";
+        (this.shadow.getElementById("pb-sc-loader")?.remove());
+        (this.shadow.getElementById("pb-sc-wrap") as HTMLElement | null)?.remove();
 
-        data.onSuccess?.();
+        opts.onSuccess?.();
         setTimeout(() => this.close(), 3000);
       } catch (err) {
-        submitBtn.disabled = false;
+        submitBtn.disabled   = false;
         submitBtn.textContent = "Submit Task";
         alert("Failed to submit: " + (err instanceof Error ? err.message : "Unknown error"));
       }

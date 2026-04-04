@@ -30,9 +30,10 @@ async function init() {
     return;
   }
 
-  const embedKey = (scriptEl as HTMLElement).dataset.key;
-  const position = ((scriptEl as HTMLElement).dataset.position as any) || "right";
-  const apiUrl = (scriptEl as HTMLElement).dataset.apiUrl || getDefaultApiUrl();
+  const embedKey           = (scriptEl as HTMLElement).dataset.key;
+  const position           = ((scriptEl as HTMLElement).dataset.position as any) || "right";
+  const apiUrl             = (scriptEl as HTMLElement).dataset.apiUrl || getDefaultApiUrl();
+  const screenshotServerUrl = (scriptEl as HTMLElement).dataset.screenshotServer || undefined;
 
   if (!embedKey) {
     console.warn("PunchBug: data-key attribute is required.");
@@ -42,7 +43,7 @@ async function init() {
   const { allowed, userName } = await checkAuth(apiUrl, embedKey);
   if (!allowed) return;
 
-  new PunchBug({ embedKey, apiUrl, position, reporterName: userName });
+  new PunchBug({ embedKey, apiUrl, position, reporterName: userName, screenshotServerUrl });
 }
 
 function getDefaultApiUrl(): string {

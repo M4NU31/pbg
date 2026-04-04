@@ -2,7 +2,10 @@ export interface ReportPayload {
   embedKey: string;
   title: string;
   description?: string;
-  screenshot: string;
+  /** base64 PNG — mutually exclusive with screenshotUrl */
+  screenshot?: string;
+  /** Pre-built URL from screenshot server — mutually exclusive with screenshot */
+  screenshotUrl?: string;
   domSelector: string;
   domHtml: string;
   pageUrl: string;
