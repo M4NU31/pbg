@@ -199,8 +199,8 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
-      // Don't close while a confirm dialog is open
-      if (confirmArchive || confirmDelete) return;
+      // Don't close while a confirm dialog or mention dropdown is open
+      if (confirmArchive || confirmDelete || showMentions) return;
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         // Don't close if clicking inside any portal/dialog (dropdowns, selects, toasts…)
         const target = e.target as HTMLElement;
@@ -214,7 +214,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
     }
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [onClose, confirmArchive, confirmDelete]);
+  }, [onClose, confirmArchive, confirmDelete, showMentions]);
 
   // ── API helpers ──────────────────────────────────────────────────
   async function updateTask(data: Record<string, unknown>) {
