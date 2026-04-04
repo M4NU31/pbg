@@ -251,7 +251,7 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
                 {isOwner && (
                   <Badge variant="secondary" className="text-xs shrink-0">Owner</Badge>
                 )}
-                {isAdmin && !isOwner && m.user.id !== currentUserId && (
+                {isAdmin && !isOwner && (
                   <Button
                     variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-yellow-500 shrink-0"
                     onClick={() => setTransferTarget(m)}

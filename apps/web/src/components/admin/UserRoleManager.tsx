@@ -124,6 +124,7 @@ export function UserRoleManager({ users, currentUserId }: { users: User[]; curre
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-muted-foreground">Role</span>
                     <Select
+                      key={user.systemRole}
                       defaultValue={user.systemRole}
                       onValueChange={(val) => handleRoleChange(user.id, val)}
                       disabled={busy}

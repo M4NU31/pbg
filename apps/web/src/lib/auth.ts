@@ -88,9 +88,15 @@ export const authOptions: NextAuthOptions = {
         // user.id here is the real DB id — adapter has already created the user
         token.sub = user.id;
 
-        // Provision CLIENT memberships on first sign-in for non-internal users
         const email = (user.email ?? "").toLowerCase();
-        if (!email.endsWith(`@${ALLOWED_DOMAIN}`)) {
+        if (email.endsWith(`@${ALLOWED_DOMAIN}`)) {
+          // Ensure internal users have a systemRole written to DB (default MEMBER)
+          await execute(
+            `UPDATE User SET systemRole = COALESCE(NULLIF(systemRole, ''), 'MEMBER') WHERE id = ? AND (systemRole IS NULL OR systemRole = '')`,
+            [user.id]
+          ).catch(() => {});
+        } else {
+          // Provision CLIENT memberships on first sign-in for non-internal users
           await provisionClientMemberships(user.id, email);
         }
       }
