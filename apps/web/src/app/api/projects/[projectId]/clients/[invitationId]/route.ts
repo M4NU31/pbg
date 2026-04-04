@@ -14,22 +14,40 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   if (!canManageProject(member!.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Try ClientInvitation.id first
   const inv = await queryOne<{ email: string }>(
     `SELECT email FROM ClientInvitation WHERE id = ? AND projectId = ?`,
     [invitationId, projectId]
   );
-  if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Remove the invitation
-  await execute(`DELETE FROM ClientInvitation WHERE id = ?`, [invitationId]);
+  let email: string;
 
-  // Remove any membership for this email in the project (role may vary if
-  // the row pre-dates the CLIENT upsert fix, so don't filter by role)
+  if (inv) {
+    email = inv.email;
+    await execute(`DELETE FROM ClientInvitation WHERE id = ?`, [invitationId]);
+  } else {
+    // Fall back: treat the id as a ProjectMember.id (joined client with no invitation record)
+    const pm = await queryOne<{ email: string }>(
+      `SELECT u.email FROM ProjectMember pm
+       JOIN User u ON pm.userId = u.id
+       WHERE pm.id = ? AND pm.projectId = ?`,
+      [invitationId, projectId]
+    );
+    if (!pm) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    email = pm.email;
+    // Also clean up any invitation record for this email if one exists
+    await execute(
+      `DELETE FROM ClientInvitation WHERE projectId = ? AND LOWER(email) = LOWER(?)`,
+      [projectId, email]
+    );
+  }
+
+  // Remove the project membership
   await execute(
     `DELETE pm FROM ProjectMember pm
      JOIN User u ON pm.userId = u.id
      WHERE pm.projectId = ? AND LOWER(u.email) = LOWER(?)`,
-    [projectId, inv.email]
+    [projectId, email]
   );
 
   return new NextResponse(null, { status: 204 });
