@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs/promises";
+import { query } from "@/lib/db";
 
 const SCREENSHOTS_DIR = path.join(process.cwd(), "public", "screenshots");
 const SCREENSHOT_SERVICE_URL = process.env.SCREENSHOT_SERVICE_URL || "http://127.0.0.1:8000";
@@ -38,6 +39,9 @@ export async function captureScreenshot(projectId: string, siteUrl: string): Pro
   const buffer = await response.arrayBuffer();
   const outputPath = path.join(SCREENSHOTS_DIR, `${projectId}.jpg`);
   await fs.writeFile(outputPath, Buffer.from(buffer));
+
+  // Mark the screenshot as ready in the DB so the dashboard knows not to re-capture
+  await query(`UPDATE Project SET screenshotAt = NOW() WHERE id = ?`, [projectId]);
 }
 
 export async function deleteScreenshot(projectId: string): Promise<void> {

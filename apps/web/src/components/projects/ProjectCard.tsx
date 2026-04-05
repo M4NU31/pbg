@@ -16,6 +16,7 @@ interface ProjectCardProps {
     description: string | null;
     siteUrl: string | null;
     ownerId: string;
+    screenshotAt: Date | null;
     _count: { tasks: number; members: number; comments: number };
     owner: { name: string | null; image: string | null };
     role: string;
@@ -30,31 +31,14 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [screenshotLoading, setScreenshotLoading] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  // Use a cache-bust key so we can force the img to reload after retake
+  // screenshotAt null = capture not done yet → show spinner and poll
+  const [isCapturing, setIsCapturing] = useState(!project.screenshotAt && !!project.siteUrl);
   const [imgKey, setImgKey] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Clean up polling on unmount
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
-
-  const isAdmin = systemRole === "ADMIN";
-  const isOwner = project.ownerId === currentUserId;
-  const canArchive = isAdmin || (systemRole === "PROJECT_MANAGER" && isOwner);
-  const canDelete = isAdmin;
-  const canRetakeScreenshot =
-    (isAdmin || systemRole === "PROJECT_MANAGER" || project.role === "PROJECT_MANAGER") &&
-    !!project.siteUrl;
-
-  const thumbSrc = `/api/projects/${project.id}/screenshot?v=${imgKey}`;
-
-  function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
-    (e.currentTarget as HTMLImageElement).style.display = "none";
-    if (!project.siteUrl) return;
-
-    // Poll every 3s until the screenshot is ready (max 20 attempts = ~60s)
-    if (pollRef.current) return;
-    setIsCapturing(true);
+  // If screenshotAt is null on mount, start polling until the image is ready
+  useEffect(() => {
+    if (!isCapturing || !project.siteUrl) return;
     let attempts = 0;
     pollRef.current = setInterval(async () => {
       attempts++;
@@ -73,6 +57,23 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
         setIsCapturing(false);
       }
     }, 3000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isAdmin = systemRole === "ADMIN";
+  const isOwner = project.ownerId === currentUserId;
+  const canArchive = isAdmin || (systemRole === "PROJECT_MANAGER" && isOwner);
+  const canDelete = isAdmin;
+  const canRetakeScreenshot =
+    (isAdmin || systemRole === "PROJECT_MANAGER" || project.role === "PROJECT_MANAGER") &&
+    !!project.siteUrl;
+
+  const thumbSrc = `/api/projects/${project.id}/screenshot?v=${imgKey}`;
+
+  function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
+    // Only fires if screenshotAt was set but the file is somehow missing (edge case)
+    (e.currentTarget as HTMLImageElement).style.display = "none";
   }
 
   async function handleRetakeScreenshot() {

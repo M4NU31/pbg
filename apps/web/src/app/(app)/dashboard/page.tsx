@@ -15,7 +15,7 @@ export default async function DashboardPage() {
   const rows = await query<Record<string, unknown>>(
     isAdmin
       ? `SELECT 'ADMIN' as role,
-         p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+         p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.screenshotAt, p.createdAt, p.updatedAt,
          (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
          (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
          (SELECT COUNT(*) FROM Comment c JOIN Task t ON c.taskId = t.id WHERE t.projectId = p.id) as commentCount,
@@ -25,7 +25,7 @@ export default async function DashboardPage() {
          WHERE p.archivedAt IS NULL
          ORDER BY p.updatedAt DESC`
       : `SELECT pm.role,
-         p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+         p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.screenshotAt, p.createdAt, p.updatedAt,
          (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
          (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
          (SELECT COUNT(*) FROM Comment c JOIN Task t ON c.taskId = t.id WHERE t.projectId = p.id) as commentCount,
@@ -46,6 +46,7 @@ export default async function DashboardPage() {
     embedKey: row.embedKey as string,
     allowedDomains: parseJson(row.allowedDomains),
     ownerId: row.ownerId as string,
+    screenshotAt: (row.screenshotAt as Date | null) ?? null,
     createdAt: row.createdAt as Date,
     updatedAt: row.updatedAt as Date,
     _count: {

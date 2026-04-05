@@ -11,7 +11,7 @@ export async function GET() {
 
   const rows = await query<Record<string, unknown>>(
     `SELECT pm.role,
-     p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.createdAt, p.updatedAt,
+     p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.screenshotAt, p.createdAt, p.updatedAt,
      (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
      (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
      (SELECT COUNT(*) FROM Comment c JOIN Task t ON c.taskId = t.id WHERE t.projectId = p.id) as commentCount,
@@ -33,6 +33,7 @@ export async function GET() {
       embedKey: row.embedKey,
       allowedDomains: parseJson(row.allowedDomains),
       ownerId: row.ownerId,
+      screenshotAt: row.screenshotAt ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       _count: { tasks: Number(row.taskCount), members: Number(row.memberCount), comments: Number(row.commentCount) },
