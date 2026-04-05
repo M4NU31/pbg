@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Settings, Users, Bug, Archive, Trash2, MessageSquare, ExternalLink, RefreshCw } from "lucide-react";
+import { Settings, Users, Bug, Archive, Trash2, MessageSquare, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 import type { SystemRole } from "@/lib/auth-helpers";
 
 interface ProjectCardProps {
@@ -30,9 +30,14 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [screenshotLoading, setScreenshotLoading] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   // Use a cache-bust key so we can force the img to reload after retake
   const [imgKey, setImgKey] = useState(0);
   const captureTriggered = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const isAdmin = systemRole === "ADMIN";
   const isOwner = project.ownerId === currentUserId;
@@ -46,11 +51,35 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
 
   function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
     (e.currentTarget as HTMLImageElement).style.display = "none";
-    // Auto-trigger capture once per mount for projects with no screenshot yet
-    if (!captureTriggered.current && project.siteUrl) {
+    if (!project.siteUrl) return;
+
+    // Trigger capture once if not already running
+    if (!captureTriggered.current) {
       captureTriggered.current = true;
       fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" }).catch(() => {});
     }
+
+    // Poll every 3s until the screenshot is ready (max 20 attempts = ~60s)
+    if (pollRef.current) return;
+    setIsCapturing(true);
+    let attempts = 0;
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(`/api/projects/${project.id}/screenshot`);
+        if (res.ok) {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+          setIsCapturing(false);
+          setImgKey((k) => k + 1);
+        }
+      } catch { /* keep polling */ }
+      if (attempts >= 20) {
+        clearInterval(pollRef.current!);
+        pollRef.current = null;
+        setIsCapturing(false);
+      }
+    }, 3000);
   }
 
   async function handleRetakeScreenshot() {
@@ -100,6 +129,13 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30 -z-10">
             <Bug className="h-10 w-10" />
           </div>
+          {/* Capturing spinner — shown while polling for a new screenshot */}
+          {isCapturing && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/80 backdrop-blur-sm">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Capturing screenshot…</span>
+            </div>
+          )}
           {/* Action buttons overlay — visible on hover */}
           <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             {project.siteUrl && (
