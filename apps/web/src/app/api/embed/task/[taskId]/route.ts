@@ -3,7 +3,7 @@ import { queryOne, query } from "@/lib/db";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, PATCH, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
@@ -30,6 +30,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const task = await queryOne<Record<string, unknown>>(
     `SELECT t.id, t.taskNumber, t.title, t.description, t.status, t.priority,
+            t.columnId, t.assigneeId,
             t.screenshotUrl, t.pageUrl, t.guestName, t.createdAt,
             t.browserName, t.browserVersion, t.osName, t.osVersion,
             t.deviceType, t.screenWidth, t.screenHeight,
@@ -70,4 +71,39 @@ export async function GET(req: NextRequest, { params }: Params) {
     },
     { headers: CORS_HEADERS }
   );
+}
+
+export async function PATCH(req: NextRequest, { params }: Params) {
+  const { taskId } = await params;
+  const key = req.nextUrl.searchParams.get("key");
+  if (!key) return NextResponse.json({ error: "Missing key" }, { status: 400, headers: CORS_HEADERS });
+
+  const existing = await queryOne<{ id: string }>(
+    `SELECT t.id FROM Task t WHERE t.id = ? AND t.projectId IN (SELECT id FROM Project WHERE embedKey = ?)`,
+    [taskId, key]
+  );
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404, headers: CORS_HEADERS });
+
+  const body = await req.json();
+  const ALLOWED = ["title", "columnId", "priority", "assigneeId", "description"] as const;
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+
+  for (const field of ALLOWED) {
+    if (field in body) {
+      setClauses.push(`${field} = ?`);
+      values.push(body[field] ?? null);
+    }
+  }
+
+  if (setClauses.length === 0) {
+    return NextResponse.json({ error: "No valid fields" }, { status: 400, headers: CORS_HEADERS });
+  }
+
+  await query(
+    `UPDATE Task SET ${setClauses.join(", ")}, updatedAt = NOW() WHERE id = ?`,
+    [...values, taskId]
+  );
+
+  return NextResponse.json({ ok: true }, { headers: CORS_HEADERS });
 }

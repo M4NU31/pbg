@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const url = await uploadFile(buffer, file.name, file.type);
+  const url = await uploadFile(buffer, file.name, file.type, "attached-files");
 
   const attachmentId = randomUUID();
   const activityId = randomUUID();

@@ -4,40 +4,40 @@ export const EMBED_STYLES = `
     all: initial;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-    --pb-bg:           #ffffff;
-    --pb-surface:      #f8fafc;
-    --pb-muted:        #f1f5f9;
-    --pb-border:       #e2e8f0;
-    --pb-text:         #0f172a;
-    --pb-text-muted:   #64748b;
-    --pb-text-subtle:  #94a3b8;
-    --pb-code-bg:      #f1f5f9;
-    --pb-comment-bg:   #f8fafc;
-    --pb-input-bg:     #ffffff;
+    --pb-bg:           hsl(0 0% 100%);
+    --pb-surface:      hsl(0 0% 98%);
+    --pb-muted:        hsl(210 40% 94%);
+    --pb-border:       hsl(214.3 31.8% 88%);
+    --pb-text:         hsl(222.2 84% 4.9%);
+    --pb-text-muted:   hsl(215.4 16.3% 46.9%);
+    --pb-text-subtle:  hsl(215.4 16.3% 60%);
+    --pb-code-bg:      hsl(210 40% 94%);
+    --pb-comment-bg:   hsl(0 0% 98%);
+    --pb-input-bg:     hsl(0 0% 100%);
     --pb-overlay-bg:   rgba(0,0,0,0.45);
-    --pb-skeleton-a:   #e2e8f0;
-    --pb-skeleton-b:   #f1f5f9;
-    --pb-badge-bg:     #f1f5f9;
-    --pb-badge-border: #e2e8f0;
+    --pb-skeleton-a:   hsl(214.3 31.8% 88%);
+    --pb-skeleton-b:   hsl(210 40% 94%);
+    --pb-badge-bg:     hsl(210 40% 94%);
+    --pb-badge-border: hsl(214.3 31.8% 88%);
   }
 
   @media (prefers-color-scheme: dark) {
     :host {
-      --pb-bg:           #0f172a;
-      --pb-surface:      #0f172a;
-      --pb-muted:        #1e293b;
-      --pb-border:       #1e293b;
-      --pb-text:         #f1f5f9;
-      --pb-text-muted:   #64748b;
-      --pb-text-subtle:  #94a3b8;
-      --pb-code-bg:      #1e293b;
-      --pb-comment-bg:   #1e293b;
-      --pb-input-bg:     #1e293b;
+      --pb-bg:           hsl(0 0% 7%);
+      --pb-surface:      hsl(0 0% 12%);
+      --pb-muted:        hsl(0 0% 18%);
+      --pb-border:       hsl(0 0% 20%);
+      --pb-text:         hsl(0 0% 95%);
+      --pb-text-muted:   hsl(0 0% 55%);
+      --pb-text-subtle:  hsl(0 0% 40%);
+      --pb-code-bg:      hsl(0 0% 18%);
+      --pb-comment-bg:   hsl(0 0% 12%);
+      --pb-input-bg:     hsl(0 0% 20%);
       --pb-overlay-bg:   rgba(0,0,0,0.6);
-      --pb-skeleton-a:   #1e293b;
-      --pb-skeleton-b:   #334155;
-      --pb-badge-bg:     #1e293b;
-      --pb-badge-border: #334155;
+      --pb-skeleton-a:   hsl(0 0% 18%);
+      --pb-skeleton-b:   hsl(0 0% 25%);
+      --pb-badge-bg:     hsl(0 0% 18%);
+      --pb-badge-border: hsl(0 0% 20%);
     }
   }
 
@@ -205,6 +205,99 @@ export const EMBED_STYLES = `
     text-overflow: ellipsis;
   }
   .pb-badge-outline a { color: inherit; text-decoration: none; }
+
+  /* ── Editable select (Column / Priority / Assignees) ────────────────────── */
+  .pb-select {
+    width: 100%;
+    height: 32px;
+    padding: 0 28px 0 8px;
+    border: 1px solid var(--pb-border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--pb-input-bg);
+    color: var(--pb-text);
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    transition: border-color 0.15s;
+  }
+  .pb-select:focus {
+    border-color: hsl(348,100%,52%);
+    box-shadow: 0 0 0 3px hsla(348,100%,52%,0.15);
+  }
+  .pb-select option { background: var(--pb-input-bg); color: var(--pb-text); }
+
+  /* ── Inline-editable title ──────────────────────────────────────────────── */
+  .pb-title-display {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--pb-text);
+    margin: 0;
+    line-height: 1.4;
+    cursor: text;
+    padding: 4px 8px;
+    margin-left: -8px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .pb-title-display:hover { background: var(--pb-muted); }
+  .pb-title-input {
+    font-size: 17px;
+    font-weight: 600;
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--pb-border);
+    border-radius: 6px;
+    font-family: inherit;
+    background: var(--pb-input-bg);
+    color: var(--pb-text);
+    outline: none;
+    line-height: 1.4;
+  }
+  .pb-title-input:focus {
+    border-color: hsl(348,100%,52%);
+    box-shadow: 0 0 0 3px hsla(348,100%,52%,0.15);
+  }
+
+  /* ── Inline-editable description ─────────────────────────────────────────── */
+  .pb-desc-display {
+    font-size: 13px;
+    color: var(--pb-text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    cursor: text;
+    padding: 6px 8px;
+    margin-left: -8px;
+    border-radius: 4px;
+    min-height: 2.5rem;
+    transition: background 0.15s;
+  }
+  .pb-desc-display:hover { background: var(--pb-muted); }
+  .pb-desc-placeholder { color: var(--pb-text-muted); font-style: italic; }
+  .pb-desc-textarea {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--pb-border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--pb-input-bg);
+    color: var(--pb-text);
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.6;
+    box-sizing: border-box;
+  }
+  .pb-desc-textarea:focus {
+    border-color: hsl(348,100%,52%);
+    box-shadow: 0 0 0 3px hsla(348,100%,52%,0.15);
+  }
 
   /* ── Meta grid (Column / Priority / Assignees row) ─────────────────────── */
   .pb-meta-grid {

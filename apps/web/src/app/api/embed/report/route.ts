@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       const imgRes = await fetch(incomingScreenshotUrl);
       if (imgRes.ok) {
         const buffer = Buffer.from(await imgRes.arrayBuffer());
-        screenshotUrl = await uploadFile(buffer, `screenshot-${Date.now()}.png`, "image/png");
+        screenshotUrl = await uploadFile(buffer, `screenshot-${Date.now()}.png`, "image/png", "tasks");
       }
     } catch (err) {
       console.error("Screenshot download/re-upload failed:", err);
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     try {
       const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
-      screenshotUrl = await uploadFile(buffer, `screenshot-${Date.now()}.png`, "image/png");
+      screenshotUrl = await uploadFile(buffer, `screenshot-${Date.now()}.png`, "image/png", "tasks");
     } catch (err) {
       console.error("Screenshot upload failed:", err);
     }
