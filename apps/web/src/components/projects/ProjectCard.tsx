@@ -36,9 +36,16 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const [imgKey, setImgKey] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // If screenshotAt is null on mount, start polling until the image is ready
+  // If screenshotAt is null on mount, trigger a capture then poll until ready.
+  // We always POST to ensure capture runs — the server-side background task
+  // may not survive on shared hosting after the project creation response.
   useEffect(() => {
     if (!isCapturing || !project.siteUrl) return;
+
+    // Trigger capture immediately (handles both new and existing projects
+    // that never got a screenshot). Fire-and-forget — response is instant.
+    fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" }).catch(() => {});
+
     let attempts = 0;
     pollRef.current = setInterval(async () => {
       attempts++;
