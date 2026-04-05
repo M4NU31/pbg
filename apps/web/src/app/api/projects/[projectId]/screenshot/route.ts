@@ -1,28 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
-import { captureScreenshot, getScreenshotPath } from "@/lib/screenshot";
+import { captureScreenshot, getScreenshotPath, getScreenshotStaticUrl } from "@/lib/screenshot";
 import fs from "fs/promises";
 
 type Params = { params: Promise<{ projectId: string }> };
 
-/** GET — serve the cached screenshot file directly */
+/** GET — check screenshot exists; redirect to static URL if configured, else serve file */
 export async function GET(_req: NextRequest, { params }: Params) {
   const { projectId } = await params;
 
   const filePath = getScreenshotPath(projectId);
   try {
-    const data = await fs.readFile(filePath);
-    return new NextResponse(data, {
-      status: 200,
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Cache-Control": "public, max-age=3600",
-      },
-    });
+    await fs.access(filePath);
   } catch {
     return new NextResponse(null, { status: 404 });
   }
+
+  // If a static base URL is configured (e.g. served by LiteSpeed from public_html),
+  // redirect there instead of piping the file through Node.js.
+  const staticUrl = getScreenshotStaticUrl(projectId);
+  if (staticUrl) {
+    return NextResponse.redirect(staticUrl, { status: 302 });
+  }
+
+  // Fallback: serve the file directly through Node.js
+  const data = await fs.readFile(filePath);
+  return new NextResponse(data, {
+    status: 200,
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
 }
 
 /** POST — capture and save a new screenshot */
