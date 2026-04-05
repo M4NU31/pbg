@@ -1,4 +1,4 @@
-# Punch QA Tool
+# Punch - Site QA Tool
 
 A self-hosted website QA and bug-reporting tool inspired by BugHerd. Teams embed a lightweight widget on any site, click elements to report tasks with automatic screenshots, and manage everything on a Kanban board. Clients can be granted restricted access to view and comment on their own tasks.
 

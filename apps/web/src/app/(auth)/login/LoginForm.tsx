@@ -22,8 +22,8 @@ export function LoginForm() {
     <div className="flex flex-col items-center gap-6 w-full max-w-sm px-4">
       {/* Logo + app name */}
       <div className="flex flex-col items-center gap-2">
-        <Image src="/logo.svg" alt="Punch QA Tool logo" width={56} height={56} priority />
-        <h1 className="text-2xl font-bold text-white tracking-tight">Punch QA Tool</h1>
+        <Image src="/logo.svg" alt="Punch - Site QA Tool logo" width={56} height={56} priority />
+        <h1 className="text-2xl font-bold text-white tracking-tight">Punch - Site QA Tool</h1>
         <p className="text-sm text-zinc-400">Sign in to access internal tools</p>
       </div>
 

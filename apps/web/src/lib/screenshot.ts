@@ -25,6 +25,7 @@ export async function captureScreenshot(projectId: string, siteUrl: string): Pro
       full_page: false,
       format: "jpeg",
       quality: 80,
+      delay_ms: 3000,
     }),
     signal: AbortSignal.timeout(30_000),
   });

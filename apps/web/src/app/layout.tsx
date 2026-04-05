@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Punch QA Tool",
+  title: "Punch - Site QA Tool",
   description: "Sign in to access internal tools.",
 };
 

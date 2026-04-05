@@ -56,7 +56,7 @@ export function AppShell({ user, systemRole, avatarUrl, isClient, children }: Ap
           </button>
           <div className="flex items-center gap-2 ml-3 md:hidden">
             <img src="/logo.svg" alt="" className="h-5 w-5" />
-            <span className="font-bold text-sm">Punch QA Tool</span>
+            <span className="font-bold text-sm">Punch - Site QA Tool</span>
           </div>
           <div className="ml-auto">
             <NotificationBell />
