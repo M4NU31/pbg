@@ -118,6 +118,35 @@ export async function captureClick(
   }
 }
 
+/**
+ * Fallback: capture the clicked element (or its nearest meaningful container)
+ * using html-to-image. Avoids full-page scroll-position issues entirely.
+ */
+export async function captureElement(el: HTMLElement): Promise<CaptureResult> {
+  // Walk up to find a container that gives reasonable context (min 200px wide)
+  let target: HTMLElement = el;
+  let current = el.parentElement;
+  while (current && current.tagName !== "BODY") {
+    const r = current.getBoundingClientRect();
+    if (r.width >= 200 && r.height >= 60) { target = current; break; }
+    current = current.parentElement;
+  }
+
+  try {
+    const full = await toPng(target, {
+      cacheBust: true,
+      pixelRatio: 1,
+      skipFonts: false,
+      filter: (node) =>
+        !node.hasAttribute?.("data-punchbug-ignore") &&
+        node.id !== "punchbug-root",
+    });
+    return { full, thumb: full };
+  } catch {
+    return { full: "", thumb: "" };
+  }
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();

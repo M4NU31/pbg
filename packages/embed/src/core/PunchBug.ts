@@ -3,7 +3,7 @@ import { ReportForm } from "../ui/ReportForm";
 import { TaskPanel } from "../ui/TaskPanel";
 import { getDomInfo } from "../capture/domInfo";
 import { getBrowserMeta } from "../capture/browserMeta";
-import { captureViaServer, captureClick } from "../capture/screenshot";
+import { captureViaServer, captureElement } from "../capture/screenshot";
 import { EMBED_STYLES } from "../ui/styles";
 
 export interface PunchBugConfig {
@@ -243,7 +243,7 @@ export class PunchBug {
     this.picker = null;
   }
 
-  private async onPicked({ el, clientX, clientY, pageX, pageY }: PickResult) {
+  private async onPicked({ el, pageX, pageY }: PickResult) {
     this.stopPicking();
 
     // 1. Ghost pin appears instantly at click position
@@ -266,14 +266,15 @@ export class PunchBug {
     });
 
     // 3. Capture screenshot in background, inject into form when ready
-    this.captureScreenshot(clientX, clientY, pageX, pageY)
+    this.captureScreenshot(el, pageX, pageY)
       .then(({ full, thumb }) => form.setScreenshot(full, thumb))
       .catch(() => form.setScreenshot(""));   // hide loader on failure
   }
 
   private async captureScreenshot(
-    clientX: number, clientY: number,
-    pageX:   number, pageY:   number
+    el:    HTMLElement,
+    pageX: number,
+    pageY: number
   ): Promise<{ full: string; thumb: string }> {
     const serverUrl = this.config.screenshotServerUrl;
 
@@ -295,7 +296,9 @@ export class PunchBug {
       }
     }
 
-    // Fallback: client-side html-to-image
-    return captureClick(clientX, clientY);
+    // Fallback: capture the clicked element directly.
+    // Avoids full-page scroll/transform issues (virtual scroll sites, etc.)
+    // — html-to-image on a single element is reliable regardless of page complexity.
+    return captureElement(el);
   }
 }
