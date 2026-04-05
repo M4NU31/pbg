@@ -201,10 +201,14 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !editingTitle && !editingDesc) onClose(); };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (screenshotLightbox) { setScreenshotLightbox(false); return; }
+      if (!editingTitle && !editingDesc) onClose();
+    };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose, editingTitle, editingDesc]);
+  }, [onClose, editingTitle, editingDesc, screenshotLightbox]);
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
@@ -412,7 +416,10 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
               <div className="flex-1">
                 <label className="text-xs text-muted-foreground mb-1 block">Column</label>
                 <Select value={task.columnId ?? ""} onValueChange={(v) => updateTask({ columnId: v })}
-                  onOpenChange={(open) => { anyDropdownOpen.current = open; }}>
+                  onOpenChange={(open) => {
+                    if (open) { anyDropdownOpen.current = true; }
+                    else { setTimeout(() => { anyDropdownOpen.current = false; }, 150); }
+                  }}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="No column" /></SelectTrigger>
                   <SelectContent>
                     {columns.map((col) => <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>)}
@@ -422,7 +429,10 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
               <div className="flex-1">
                 <label className="text-xs text-muted-foreground mb-1 block">Priority</label>
                 <Select value={task.priority} onValueChange={(v) => updateTask({ priority: v })}
-                  onOpenChange={(open) => { anyDropdownOpen.current = open; }}>
+                  onOpenChange={(open) => {
+                    if (open) { anyDropdownOpen.current = true; }
+                    else { setTimeout(() => { anyDropdownOpen.current = false; }, 150); }
+                  }}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PRIORITY_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
