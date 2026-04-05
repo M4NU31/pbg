@@ -14,6 +14,7 @@ interface Project {
   description: string | null;
   siteUrl: string | null;
   ownerId: string;
+  screenshotAt: Date | null;
   _count: { tasks: number; members: number; comments: number };
   owner: { name: string | null; image: string | null };
   role: string;
