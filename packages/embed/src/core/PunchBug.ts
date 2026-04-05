@@ -149,7 +149,7 @@ export class PunchBug {
     document.body.appendChild(pin);
     pin.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.taskPanel.show(task, this.projectId, this.config.apiUrl);
+      this.taskPanel.show(task, this.projectId, this.config.apiUrl, this.config.embedKey);
     });
     this.pinCleanups.push(() => pin.remove());
   }
@@ -168,7 +168,7 @@ export class PunchBug {
     window.addEventListener("resize", reposition, { passive: true });
     pin.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.taskPanel.show(task, this.projectId, this.config.apiUrl);
+      this.taskPanel.show(task, this.projectId, this.config.apiUrl, this.config.embedKey);
     });
     this.pinCleanups.push(() => {
       window.removeEventListener("scroll", reposition);

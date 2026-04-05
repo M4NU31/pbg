@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { embedKey, title, description, screenshot, screenshotUrl: incomingScreenshotUrl, domSelector, domHtml, pageUrl, columnId, tagIds, reporterName, guestName, guestEmail, browserMeta, pinX, pinY } = body as typeof body & { screenshotUrl?: string };
+  const { embedKey, title, description, priority: rawPriority, screenshot, screenshotUrl: incomingScreenshotUrl, domSelector, domHtml, pageUrl, columnId, tagIds, reporterName, guestName, guestEmail, browserMeta, pinX, pinY } = body as typeof body & { screenshotUrl?: string; priority?: string };
+  const VALID_PRIORITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
+  const priority = VALID_PRIORITIES.includes(rawPriority ?? "") ? rawPriority! : "MEDIUM";
   const resolvedTagIds: string[] = Array.isArray(tagIds) ? tagIds : [];
 
   if (!embedKey || !title || !domSelector || !pageUrl) {
@@ -113,10 +115,10 @@ export async function POST(req: NextRequest) {
         screenWidth, screenHeight, viewportWidth, viewportHeight, userAgent,
         pinX, pinY,
         createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', 'MEDIUM', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, 'BACKLOG', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         taskId, projectId, title.slice(0, 255), description?.slice(0, 5000) || null, num,
-        targetColumnId, reporterName || guestName || null, guestEmail || null,
+        priority, targetColumnId, reporterName || guestName || null, guestEmail || null,
         screenshotUrl || null, domSelector.slice(0, 500), domHtml?.slice(0, 5000) || null,
         pageUrl.slice(0, 2000),
         browserMeta?.browserName || null, browserMeta?.browserVersion || null,

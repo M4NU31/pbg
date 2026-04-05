@@ -18,10 +18,11 @@ interface FormOptions {
   onClose?: () => void;
 }
 
+const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+
 export class ReportForm {
   private shadow: ShadowRoot;
   private overlay: HTMLElement;
-  /** The full screenshot (data-URL or server URL) set asynchronously */
   private screenshotFull = "";
   private opts: FormOptions;
 
@@ -31,13 +32,6 @@ export class ReportForm {
     this.overlay = this.render(opts);
   }
 
-  // ── Public: inject screenshot after async capture ───────────────────────
-
-  /**
-   * Called when the screenshot is ready.
-   * `full`  — data-URL or server URL (sent to report API)
-   * `thumb` — data-URL for the preview thumbnail (optional; falls back to full)
-   */
   setScreenshot(full: string, thumb?: string) {
     this.screenshotFull = full;
 
@@ -45,19 +39,13 @@ export class ReportForm {
     const wrap    = this.shadow.getElementById("pb-sc-wrap") as HTMLElement | null;
     const preview = this.shadow.getElementById("pb-sc-img")  as HTMLImageElement | null;
 
-    if (!full) {
-      // Screenshot failed — just hide the loader
-      loader?.remove();
-      return;
-    }
+    if (!full) { loader?.remove(); return; }
 
     const displaySrc = thumb || full;
     if (preview) preview.src = displaySrc;
+    if (loader) loader.style.display = "none";
+    if (wrap)   wrap.style.display   = "block";
 
-    if (loader) loader.style.display  = "none";
-    if (wrap)   wrap.style.display    = "block";
-
-    // Wire expand button now that we have the full image
     if (full) {
       this.shadow.getElementById("pb-sc-expand")?.addEventListener("click", () => {
         this.openLightbox(full);
@@ -65,18 +53,28 @@ export class ReportForm {
     }
   }
 
-  // ── Private: render ──────────────────────────────────────────────────────
-
   private render(opts: FormOptions): HTMLElement {
     const overlay = document.createElement("div");
     overlay.className = "pb-overlay";
 
-    const card = document.createElement("div");
-    card.className = "pb-form-card";
+    const panel = document.createElement("div");
+    panel.className = "pb-panel";
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    const header = document.createElement("div");
+    header.className = "pb-panel-header";
+    header.innerHTML = `
+      <h2 class="pb-panel-title">Report a Task</h2>
+      <button class="pb-close-btn" id="pb-close">&#x2715;</button>
+    `;
+
+    // ── Body ─────────────────────────────────────────────────────────────────
+    const body = document.createElement("div");
+    body.className = "pb-panel-body";
 
     const columnSelect = opts.columns.length > 0
       ? `<div class="pb-field">
-           <label class="pb-label" for="pb-column">Add to column</label>
+           <label class="pb-label" for="pb-column">Column</label>
            <select class="pb-input" id="pb-column">
              ${opts.columns.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
            </select>
@@ -99,60 +97,71 @@ export class ReportForm {
          </div>`
       : "";
 
-    card.innerHTML = `
-      <div class="pb-form-header">
-        <h2 class="pb-form-title">Report a Task</h2>
-        <button class="pb-close-btn" id="pb-close">&#x2715;</button>
-      </div>
-
-      <!-- Screenshot area: loader shown first, image injected async -->
+    body.innerHTML = `
+      <!-- Screenshot loader -->
       <div id="pb-sc-loader" class="pb-sc-loader">
         <span class="pb-sc-spinner"></span>
-        <span style="font-size:12px;color:#9ca3af;margin-left:8px">Capturing screenshot…</span>
+        <span>Capturing screenshot…</span>
       </div>
-      <div id="pb-sc-wrap" class="pb-screenshot-wrap" style="display:none">
-        <img id="pb-sc-img" class="pb-screenshot-preview" alt="Screenshot" />
-        <button class="pb-screenshot-expand" id="pb-sc-expand" title="View full screenshot">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <polyline points="9 21 3 21 3 15"></polyline>
-            <line x1="21" y1="3" x2="14" y2="10"></line>
-            <line x1="3" y1="21" x2="10" y2="14"></line>
-          </svg>
-        </button>
+      <div id="pb-sc-wrap" style="display:none">
+        <div class="pb-screenshot-wrap">
+          <img id="pb-sc-img" class="pb-screenshot-preview" alt="Screenshot" />
+          <button class="pb-screenshot-expand" id="pb-sc-expand" title="View full screenshot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
+        </div>
       </div>
 
+      <!-- Environment info -->
       <div class="pb-info-box">
         <div class="pb-info-row">
-          <span>&#127760;</span>
-          <span style="word-break:break-all">${opts.pageUrl}</span>
+          <span class="pb-info-icon">&#127760;</span>
+          <span class="pb-info-val" style="word-break:break-all">${opts.pageUrl}</span>
         </div>
         <div class="pb-info-row">
-          <span>&#128187;</span>
-          <span>${opts.browserMeta.browserName} ${opts.browserMeta.browserVersion}
-                &bull; ${opts.browserMeta.osName}
-                &bull; ${opts.browserMeta.screenWidth}&#xd7;${opts.browserMeta.screenHeight}</span>
+          <span class="pb-info-icon">&#128187;</span>
+          <span class="pb-info-val">${opts.browserMeta.browserName} ${opts.browserMeta.browserVersion} &bull; ${opts.browserMeta.osName} &bull; ${opts.browserMeta.screenWidth}&#xd7;${opts.browserMeta.screenHeight}</span>
         </div>
         <div class="pb-info-row">
-          <span>&#128279;</span>
-          <code style="font-size:11px">${opts.domInfo.selector}</code>
+          <span class="pb-info-icon">&#128279;</span>
+          <code style="font-size:11px;color:#94a3b8">${opts.domInfo.selector}</code>
         </div>
       </div>
 
+      <!-- Form fields -->
       <div id="pb-report-form">
         <div class="pb-field">
-          <label class="pb-label" for="pb-title">What happened? *</label>
-          <input class="pb-input" id="pb-title" type="text"
-                 placeholder="Button not responding, layout broken, etc." />
+          <label class="pb-label" for="pb-title">What happened? <span style="color:hsl(348,100%,52%)">*</span></label>
+          <input class="pb-input" id="pb-title" type="text" placeholder="Button not responding, layout broken…" />
         </div>
         <div class="pb-field">
           <label class="pb-label" for="pb-desc">More details</label>
-          <textarea class="pb-textarea" id="pb-desc"
-                    placeholder="Steps to reproduce, expected vs actual behavior…"></textarea>
+          <textarea class="pb-textarea" id="pb-desc" placeholder="Steps to reproduce, expected vs actual…"></textarea>
         </div>
-        ${columnSelect}
+        <div class="pb-form-row">
+          <div class="pb-field" style="margin-bottom:0">
+            <label class="pb-label" for="pb-priority">Priority</label>
+            <select class="pb-input" id="pb-priority">
+              <option value="LOW">Low</option>
+              <option value="MEDIUM" selected>Medium</option>
+              <option value="HIGH">High</option>
+              <option value="CRITICAL">Critical</option>
+            </select>
+          </div>
+          ${opts.columns.length > 0 ? `<div class="pb-field" style="margin-bottom:0">
+            <label class="pb-label" for="pb-column">Column</label>
+            <select class="pb-input" id="pb-column">
+              ${opts.columns.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
+            </select>
+          </div>` : "<div></div>"}
+        </div>
         ${tagSelect}
-        <button class="pb-submit-btn" id="pb-submit">Submit Task</button>
+        <button class="pb-submit-btn" id="pb-submit" style="margin-top:16px">Submit Task</button>
       </div>
 
       <div id="pb-success" style="display:none" class="pb-success">
@@ -162,7 +171,9 @@ export class ReportForm {
       </div>
     `;
 
-    overlay.appendChild(card);
+    panel.appendChild(header);
+    panel.appendChild(body);
+    overlay.appendChild(panel);
     this.shadow.appendChild(overlay);
 
     // Close handlers
@@ -174,9 +185,7 @@ export class ReportForm {
     this.shadow.querySelectorAll<HTMLSpanElement>(".pb-tag-pill").forEach((pill) => {
       pill.style.opacity = "0.55";
       pill.addEventListener("click", () => {
-        const cb = this.shadow.querySelector<HTMLInputElement>(
-          `.pb-tag-cb[value="${pill.dataset.tagId}"]`
-        );
+        const cb = this.shadow.querySelector<HTMLInputElement>(`.pb-tag-cb[value="${pill.dataset.tagId}"]`);
         if (!cb) return;
         cb.checked = !cb.checked;
         pill.style.opacity    = cb.checked ? "1"   : "0.55";
@@ -191,6 +200,7 @@ export class ReportForm {
       if (!title) { (this.shadow.getElementById("pb-title") as HTMLInputElement).focus(); return; }
 
       const description = (this.shadow.getElementById("pb-desc") as HTMLTextAreaElement).value.trim();
+      const priority    = (this.shadow.getElementById("pb-priority") as HTMLSelectElement).value;
       const columnId    = opts.columns.length > 0
         ? (this.shadow.getElementById("pb-column") as HTMLSelectElement).value
         : undefined;
@@ -198,18 +208,17 @@ export class ReportForm {
         ? Array.from(this.shadow.querySelectorAll<HTMLInputElement>(".pb-tag-cb:checked")).map((c) => c.value)
         : [];
 
-      submitBtn.disabled   = true;
+      submitBtn.disabled    = true;
       submitBtn.textContent = "Submitting…";
 
       try {
-        // If screenshotFull is a server URL (http…), pass it as screenshotUrl.
-        // If it's a data-URL (base64), pass it as screenshot for upload.
         const isServerUrl = this.screenshotFull.startsWith("http");
         await submitReport(opts.apiUrl, {
           embedKey:      opts.embedKey,
           title,
           description:   description || undefined,
-          screenshot:    isServerUrl ? undefined        : this.screenshotFull,
+          priority,
+          screenshot:    isServerUrl ? undefined           : this.screenshotFull,
           screenshotUrl: isServerUrl ? this.screenshotFull : undefined,
           domSelector:   opts.domInfo.selector,
           domHtml:       opts.domInfo.outerHtml,
@@ -224,13 +233,13 @@ export class ReportForm {
 
         (this.shadow.getElementById("pb-report-form") as HTMLElement).style.display = "none";
         (this.shadow.getElementById("pb-success")      as HTMLElement).style.display = "block";
-        (this.shadow.getElementById("pb-sc-loader")?.remove());
+        this.shadow.getElementById("pb-sc-loader")?.remove();
         (this.shadow.getElementById("pb-sc-wrap") as HTMLElement | null)?.remove();
 
         opts.onSuccess?.();
         setTimeout(() => this.close(), 3000);
       } catch (err) {
-        submitBtn.disabled   = false;
+        submitBtn.disabled    = false;
         submitBtn.textContent = "Submit Task";
         alert("Failed to submit: " + (err instanceof Error ? err.message : "Unknown error"));
       }

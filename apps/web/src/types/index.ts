@@ -14,6 +14,7 @@ export interface EmbedReportPayload {
   embedKey: string;
   title: string;
   description?: string;
+  priority?: string;      // LOW | MEDIUM | HIGH | CRITICAL — defaults to MEDIUM
   screenshot?: string;    // base64 PNG — full viewport screenshot (mutually exclusive with screenshotUrl)
   screenshotUrl?: string; // pre-built URL from screenshot server (mutually exclusive with screenshot)
   domSelector: string;
