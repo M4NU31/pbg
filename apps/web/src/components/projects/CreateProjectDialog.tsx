@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { toast } from "@/hooks/use-toast";
 import { Copy, Check, ChevronRight, ChevronLeft, X, UserPlus, Loader2 } from "lucide-react";
+import { buildEmbedSnippet } from "@/lib/embed-snippet";
 
 interface SearchUser {
   id: string;
@@ -42,7 +43,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   const [siteUrl, setSiteUrl] = useState("");
 
   // Step 2 - created project data
-  const [createdProject, setCreatedProject] = useState<{ id: string; embedKey: string } | null>(null);
+  const [createdProject, setCreatedProject] = useState<{ id: string; slug: string; embedKey: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Step 3 - member invite chips
@@ -103,7 +104,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setCreatedProject({ id: data.id, embedKey: data.embedKey });
+      setCreatedProject({ id: data.id, slug: data.slug, embedKey: data.embedKey });
       setStep(1);
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to create project", variant: "destructive" });
@@ -114,8 +115,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
   function embedScript() {
     if (!createdProject) return "";
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    return `<script src="${origin}/embed.js" data-key="${createdProject.embedKey}" defer></script>`;
+    const embedUrl = process.env.NEXT_PUBLIC_EMBED_URL ||
+      `${typeof window !== "undefined" ? window.location.origin : ""}/embed/punchbug.js`;
+    return buildEmbedSnippet(createdProject.embedKey, embedUrl);
   }
 
   function handleCopy() {
@@ -181,7 +183,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   function finishAndClose() {
     onOpenChange(false);
     if (createdProject) {
-      router.push(`/projects/${createdProject.id}`);
+      router.push(`/projects/${createdProject.slug}`);
     } else {
       router.refresh();
     }

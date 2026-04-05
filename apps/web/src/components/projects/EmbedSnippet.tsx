@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Copy, RefreshCw, Check } from "lucide-react";
+import { buildEmbedSnippet } from "@/lib/embed-snippet";
 
 interface EmbedSnippetProps {
   embedKey: string;
@@ -16,9 +17,7 @@ export function EmbedSnippet({ embedKey, embedUrl }: EmbedSnippetProps) {
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
 
-  const screenshotServer = process.env.NEXT_PUBLIC_SCREENSHOT_SERVER_URL;
-  const screenshotLine = screenshotServer ? `\n  data-screenshot-server="${screenshotServer}"` : "";
-  const snippet = `<script\n  src="${embedUrl}"\n  data-key="${embedKey}"${screenshotLine}\n  async\n></script>`;
+  const snippet = buildEmbedSnippet(embedKey, embedUrl);
 
   async function copySnippet() {
     await navigator.clipboard.writeText(snippet);
