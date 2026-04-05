@@ -43,14 +43,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "No siteUrl set for this project" }, { status: 400 });
   }
 
-  try {
-    await captureScreenshot(projectId, project.siteUrl);
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("[screenshot]", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Screenshot failed" },
-      { status: 500 }
-    );
-  }
+  // Fire capture in background — do not block the response (Nginx would 504 on slow captures)
+  captureScreenshot(projectId, project.siteUrl).catch((err) =>
+    console.error("[screenshot retake]", err)
+  );
+  return NextResponse.json({ ok: true });
 }
