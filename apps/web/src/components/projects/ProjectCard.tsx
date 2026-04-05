@@ -33,7 +33,6 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const [isCapturing, setIsCapturing] = useState(false);
   // Use a cache-bust key so we can force the img to reload after retake
   const [imgKey, setImgKey] = useState(0);
-  const captureTriggered = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clean up polling on unmount
@@ -52,12 +51,6 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
     (e.currentTarget as HTMLImageElement).style.display = "none";
     if (!project.siteUrl) return;
-
-    // Trigger capture once if not already running
-    if (!captureTriggered.current) {
-      captureTriggered.current = true;
-      fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" }).catch(() => {});
-    }
 
     // Poll every 3s until the screenshot is ready (max 20 attempts = ~60s)
     if (pollRef.current) return;

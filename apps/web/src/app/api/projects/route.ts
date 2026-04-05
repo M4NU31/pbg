@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, withTransaction, connExecute, parseJson } from "@/lib/db";
 import { requireAuth, getSystemRole } from "@/lib/auth-helpers";
 import { generateEmbedKey } from "@/lib/utils";
+import { captureScreenshot } from "@/lib/screenshot";
 import { randomUUID } from "crypto";
 
 export async function GET() {
@@ -89,6 +90,12 @@ export async function POST(req: NextRequest) {
     `SELECT * FROM Project WHERE id = ?`,
     [projectId]
   );
+
+  // Fire screenshot capture in the background on the server — does not block the response
+  // and runs regardless of which page the client navigates to.
+  if (siteUrl?.trim()) {
+    captureScreenshot(projectId, siteUrl.trim()).catch(() => {});
+  }
 
   return NextResponse.json(
     { ...project, allowedDomains: parseJson(project!.allowedDomains) },
