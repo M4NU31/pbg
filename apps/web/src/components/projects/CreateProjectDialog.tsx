@@ -182,7 +182,11 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
   function finishAndClose() {
     onOpenChange(false);
-    router.refresh();
+    if (createdProject) {
+      router.push(`/projects/${createdProject.id}`);
+    } else {
+      router.refresh();
+    }
   }
 
   const embedCode = embedScript();
