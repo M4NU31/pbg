@@ -21,6 +21,7 @@ export const EMBED_STYLES = `
     --pb-badge-border: hsl(214.3 31.8% 88%);
   }
 
+  /* OS-level dark mode (fallback when JS hasn't run yet) */
   @media (prefers-color-scheme: dark) {
     :host {
       --pb-bg:           hsl(0 0% 7%);
@@ -39,6 +40,44 @@ export const EMBED_STYLES = `
       --pb-badge-bg:     hsl(0 0% 18%);
       --pb-badge-border: hsl(0 0% 20%);
     }
+  }
+
+  /* Site-level dark mode — set by JS when site's own dark class is detected */
+  :host(.pb-dark) {
+    --pb-bg:           hsl(0 0% 7%);
+    --pb-surface:      hsl(0 0% 12%);
+    --pb-muted:        hsl(0 0% 18%);
+    --pb-border:       hsl(0 0% 20%);
+    --pb-text:         hsl(0 0% 95%);
+    --pb-text-muted:   hsl(0 0% 55%);
+    --pb-text-subtle:  hsl(0 0% 40%);
+    --pb-code-bg:      hsl(0 0% 18%);
+    --pb-comment-bg:   hsl(0 0% 12%);
+    --pb-input-bg:     hsl(0 0% 20%);
+    --pb-overlay-bg:   rgba(0,0,0,0.6);
+    --pb-skeleton-a:   hsl(0 0% 18%);
+    --pb-skeleton-b:   hsl(0 0% 25%);
+    --pb-badge-bg:     hsl(0 0% 18%);
+    --pb-badge-border: hsl(0 0% 20%);
+  }
+
+  /* Explicit light override — used when site forces light mode */
+  :host(.pb-light) {
+    --pb-bg:           hsl(0 0% 100%);
+    --pb-surface:      hsl(0 0% 98%);
+    --pb-muted:        hsl(210 40% 94%);
+    --pb-border:       hsl(214.3 31.8% 88%);
+    --pb-text:         hsl(222.2 84% 4.9%);
+    --pb-text-muted:   hsl(215.4 16.3% 46.9%);
+    --pb-text-subtle:  hsl(215.4 16.3% 60%);
+    --pb-code-bg:      hsl(210 40% 94%);
+    --pb-comment-bg:   hsl(0 0% 98%);
+    --pb-input-bg:     hsl(0 0% 100%);
+    --pb-overlay-bg:   rgba(0,0,0,0.45);
+    --pb-skeleton-a:   hsl(214.3 31.8% 88%);
+    --pb-skeleton-b:   hsl(210 40% 94%);
+    --pb-badge-bg:     hsl(210 40% 94%);
+    --pb-badge-border: hsl(214.3 31.8% 88%);
   }
 
   * { box-sizing: border-box; }

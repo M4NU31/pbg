@@ -90,6 +90,7 @@ export class PunchBug {
 
     this.taskPanel = new TaskPanel(this.shadow);
 
+    this.watchTheme();
     this.fetchColumns();
     this.fetchTags();
     this.fetchPageTasks();
@@ -218,6 +219,44 @@ export class PunchBug {
   }
 
   refreshPins() { this.fetchPageTasks(); }
+
+  // ── Theme detection ───────────────────────────────────────────────────────
+
+  private applyTheme() {
+    const html = document.documentElement;
+    const body = document.body;
+    const isDark =
+      html.classList.contains("dark") ||
+      html.getAttribute("data-theme") === "dark" ||
+      html.getAttribute("data-color-scheme") === "dark" ||
+      body?.classList.contains("dark") ||
+      body?.classList.contains("dark-mode") ||
+      body?.getAttribute("data-theme") === "dark" ||
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    this.hostEl.classList.toggle("pb-dark", isDark);
+    this.hostEl.classList.toggle("pb-light", !isDark);
+  }
+
+  private watchTheme() {
+    this.applyTheme();
+
+    // Re-apply when OS preference changes
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.applyTheme());
+
+    // Re-apply when the site changes its own dark/light class or attribute
+    const observer = new MutationObserver(() => this.applyTheme());
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme", "data-color-scheme"],
+    });
+    if (document.body) {
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ["class", "data-theme"],
+      });
+    }
+  }
 
   // ── Picking mode ──────────────────────────────────────────────────────────
 
