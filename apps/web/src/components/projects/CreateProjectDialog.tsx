@@ -105,6 +105,12 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setCreatedProject({ id: data.id, slug: data.slug, embedKey: data.embedKey });
+      // Kick off screenshot capture from the client immediately — more reliable than
+      // server-side background tasks on shared hosting. By the time the user finishes
+      // the remaining steps and navigates to the dashboard it will be ready.
+      if (siteUrl.trim()) {
+        fetch(`/api/projects/${data.id}/screenshot`, { method: "POST" }).catch(() => {});
+      }
       setStep(1);
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to create project", variant: "destructive" });
