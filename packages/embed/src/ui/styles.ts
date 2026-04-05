@@ -206,6 +206,46 @@ export const EMBED_STYLES = `
   }
   .pb-badge-outline a { color: inherit; text-decoration: none; }
 
+  /* ── Meta grid (Column / Priority / Assignees row) ─────────────────────── */
+  .pb-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .pb-meta-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pb-meta-value {
+    font-size: 13px;
+    color: var(--pb-text);
+    font-weight: 400;
+  }
+
+  /* ── Section header row (label + action button side by side) ────────────── */
+  .pb-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .pb-expand-text-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--pb-text-muted);
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .pb-expand-text-btn:hover { color: var(--pb-text); background: var(--pb-muted); }
+
   /* ── Environment badges ─────────────────────────────────────────────────── */
   .pb-env-row { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -312,6 +352,44 @@ export const EMBED_STYLES = `
     text-align: center;
     padding: 8px 0;
   }
+
+  /* ── Comment form ───────────────────────────────────────────────────────── */
+  .pb-comment-form { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .pb-comment-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--pb-border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    background: var(--pb-input-bg);
+    color: var(--pb-text);
+    resize: vertical;
+    min-height: 72px;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+  }
+  .pb-comment-textarea::placeholder { color: var(--pb-text-muted); }
+  .pb-comment-textarea:focus {
+    border-color: hsl(348,100%,52%);
+    box-shadow: 0 0 0 3px hsla(348,100%,52%,0.15);
+  }
+  .pb-comment-actions { display: flex; gap: 8px; }
+  .pb-post-btn {
+    padding: 6px 14px;
+    background: hsl(348,100%,52%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .pb-post-btn:hover:not(:disabled) { background: hsl(348,100%,42%); }
+  .pb-post-btn:disabled { opacity: 0.6; cursor: default; }
 
   /* ── Lightbox ───────────────────────────────────────────────────────────── */
   .pb-lightbox {

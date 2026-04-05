@@ -4,6 +4,13 @@ const PRIORITY_COLOR: Record<string, string> = {
   LOW: "#64748b", MEDIUM: "#f59e0b", HIGH: "#f97316", CRITICAL: "#ef4444",
 };
 
+interface Comment {
+  id: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
+}
+
 interface FullTask {
   id: string;
   taskNumber: number;
@@ -12,9 +19,12 @@ interface FullTask {
   status: string;
   priority: string;
   columnName: string | null;
+  projectSlug: string | null;
   screenshotUrl: string | null;
   pageUrl: string | null;
   guestName: string | null;
+  creatorName: string | null;
+  assigneeName: string | null;
   createdAt: string;
   browserName: string | null;
   browserVersion: string | null;
@@ -24,7 +34,7 @@ interface FullTask {
   screenWidth: number | null;
   screenHeight: number | null;
   domSelector: string | null;
-  comments: { id: string; body: string; authorName: string; createdAt: string }[];
+  comments: Comment[];
 }
 
 function timeAgo(iso: string): string {
@@ -71,9 +81,10 @@ export class TaskPanel {
     body.className = "pb-panel-body";
     body.innerHTML = `
       <div class="pb-skeleton" style="height:24px;width:65%"></div>
-      <div style="display:flex;gap:8px">
-        <div class="pb-skeleton" style="height:20px;width:90px;border-radius:9999px"></div>
-        <div class="pb-skeleton" style="height:20px;width:90px;border-radius:9999px"></div>
+      <div class="pb-meta-grid">
+        <div class="pb-skeleton" style="height:56px;border-radius:6px"></div>
+        <div class="pb-skeleton" style="height:56px;border-radius:6px"></div>
+        <div class="pb-skeleton" style="height:56px;border-radius:6px"></div>
       </div>
       <div>
         <div class="pb-skeleton" style="height:12px;width:80px;margin-bottom:8px"></div>
@@ -94,26 +105,30 @@ export class TaskPanel {
     // Fetch full task detail
     fetch(`${apiUrl}/api/embed/task/${task.id}?key=${encodeURIComponent(embedKey)}`)
       .then((r) => r.ok ? r.json() : Promise.reject(r.status))
-      .then((full: FullTask) => this.renderFull(body, full, projectId, apiUrl))
+      .then((full: FullTask) => this.renderFull(body, full, projectId, apiUrl, embedKey))
       .catch(() => this.renderBasic(body, task, projectId, apiUrl));
   }
 
-  private renderFull(body: HTMLElement, task: FullTask, projectId: string, apiUrl: string) {
+  private renderFull(body: HTMLElement, task: FullTask, projectId: string, apiUrl: string, embedKey: string) {
     const pc = PRIORITY_COLOR[task.priority] ?? "#64748b";
+    const reporter = task.creatorName || task.guestName || "Guest";
+    const boardSlug = task.projectSlug ?? projectId;
 
     // ── Screenshot ──────────────────────────────────────────────────────────
     const screenshotHtml = task.screenshotUrl ? `
       <div>
-        <p class="pb-section-label">Screenshot</p>
-        <div class="pb-screenshot-wrap" id="pb-tp-sc-wrap">
-          <img class="pb-screenshot-preview" src="${task.screenshotUrl}" alt="Screenshot" />
-          <button class="pb-screenshot-expand" id="pb-tp-expand">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+        <div class="pb-section-header">
+          <p class="pb-section-label" style="margin:0">Screenshot</p>
+          <button class="pb-expand-text-btn" id="pb-tp-expand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
               <polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline>
               <line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>
             </svg>
             Expand
           </button>
+        </div>
+        <div class="pb-screenshot-wrap" id="pb-tp-sc-wrap" style="margin-top:8px">
+          <img class="pb-screenshot-preview" src="${task.screenshotUrl}" alt="Screenshot" />
         </div>
       </div>` : "";
 
@@ -156,27 +171,36 @@ export class TaskPanel {
       </div>` : "";
 
     // ── Comments ────────────────────────────────────────────────────────────
-    const commentsHtml = task.comments.length
-      ? task.comments.map((c) => `
-          <div class="pb-comment">
-            <div class="pb-comment-meta">
-              <span class="pb-comment-author">${esc(c.authorName)}</span>
-              <span class="pb-comment-date">${timeAgo(c.createdAt)}</span>
-            </div>
-            <p class="pb-comment-body">${esc(c.body)}</p>
-          </div>`).join("")
-      : `<p class="pb-no-comments">No comments yet.</p>`;
+    const renderComments = (comments: Comment[]) =>
+      comments.length
+        ? comments.map((c) => `
+            <div class="pb-comment">
+              <div class="pb-comment-meta">
+                <span class="pb-comment-author">${esc(c.authorName)}</span>
+                <span class="pb-comment-date">${timeAgo(c.createdAt)}</span>
+              </div>
+              <p class="pb-comment-body">${esc(c.body)}</p>
+            </div>`).join("")
+        : `<p class="pb-no-comments">No comments yet.</p>`;
 
     body.innerHTML = `
       <!-- Title -->
       <h2 style="font-size:17px;font-weight:600;color:var(--pb-text);margin:0;line-height:1.4">${esc(task.title)}</h2>
 
-      <!-- Column + Priority badges -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        ${task.columnName
-          ? `<span class="pb-badge-outline">${esc(task.columnName)}</span>`
-          : ""}
-        <span class="pb-badge" style="background:${pc}22;color:${pc};border-color:${pc}44">${task.priority}</span>
+      <!-- Column | Priority | Assignees — 3-col grid matching dashboard -->
+      <div class="pb-meta-grid">
+        <div class="pb-meta-col">
+          <p class="pb-section-label">Column</p>
+          <span class="pb-meta-value">${task.columnName ? esc(task.columnName) : "—"}</span>
+        </div>
+        <div class="pb-meta-col">
+          <p class="pb-section-label">Priority</p>
+          <span class="pb-badge" style="background:${pc}22;color:${pc};border-color:${pc}44">${task.priority}</span>
+        </div>
+        <div class="pb-meta-col">
+          <p class="pb-section-label">Assignees</p>
+          <span class="pb-meta-value">${task.assigneeName ? esc(task.assigneeName) : "Unassigned"}</span>
+        </div>
       </div>
 
       <!-- Description -->
@@ -187,12 +211,11 @@ export class TaskPanel {
       </div>` : ""}
 
       <!-- Reported by -->
-      ${task.guestName ? `
       <div>
         <p class="pb-section-label">Reported by</p>
-        <p style="font-size:13px;color:var(--pb-text);margin:0">${esc(task.guestName)}</p>
+        <p style="font-size:13px;font-weight:500;color:var(--pb-text);margin:0">${esc(reporter)}</p>
         <p style="font-size:11px;color:var(--pb-text-muted);margin:3px 0 0">${timeAgo(task.createdAt)}</p>
-      </div>` : ""}
+      </div>
 
       <!-- Screenshot -->
       ${screenshotHtml}
@@ -205,13 +228,26 @@ export class TaskPanel {
 
       <!-- Comments -->
       <div>
-        <p class="pb-section-label">Comments (${task.comments.length})</p>
-        <div class="pb-comments-list">${commentsHtml}</div>
+        <p class="pb-section-label" id="pb-comments-label">Comments (${task.comments.length})</p>
+        <div class="pb-comments-list" id="pb-comments-list">${renderComments(task.comments)}</div>
+
+        <!-- Comment form -->
+        <div class="pb-comment-form" id="pb-comment-form">
+          <textarea
+            class="pb-comment-textarea"
+            id="pb-comment-input"
+            placeholder="Add a comment…"
+            rows="3"
+          ></textarea>
+          <div class="pb-comment-actions">
+            <button class="pb-post-btn" id="pb-post-comment">Post comment</button>
+          </div>
+        </div>
       </div>
 
       <!-- View in board -->
       <a class="pb-view-board-btn"
-         href="${apiUrl}/projects/${projectId}?task=${task.id}"
+         href="${apiUrl}/projects/${boardSlug}?task=${task.taskNumber}"
          target="_blank" rel="noopener noreferrer">
         View in board →
       </a>
@@ -227,14 +263,66 @@ export class TaskPanel {
         this.openLightbox(task.screenshotUrl!);
       });
     }
+
+    // Wire up comment posting
+    const commentInput = this.shadow.getElementById("pb-comment-input") as HTMLTextAreaElement | null;
+    const postBtn = this.shadow.getElementById("pb-post-comment") as HTMLButtonElement | null;
+    const commentsList = this.shadow.getElementById("pb-comments-list");
+    const commentsLabel = this.shadow.getElementById("pb-comments-label");
+    let commentCount = task.comments.length;
+
+    postBtn?.addEventListener("click", async () => {
+      const text = commentInput?.value.trim();
+      if (!text || !commentInput) return;
+      postBtn.disabled = true;
+      postBtn.textContent = "Posting…";
+      try {
+        const res = await fetch(
+          `${apiUrl}/api/embed/task/${task.id}/comments?key=${encodeURIComponent(embedKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body: text, guestName: reporter }),
+          }
+        );
+        if (!res.ok) throw new Error();
+        const newComment: Comment = await res.json();
+        commentInput.value = "";
+        commentCount++;
+        if (commentsLabel) commentsLabel.textContent = `Comments (${commentCount})`;
+        if (commentsList) {
+          // Remove "No comments yet" if present
+          const noComments = commentsList.querySelector(".pb-no-comments");
+          if (noComments) noComments.remove();
+          const div = document.createElement("div");
+          div.className = "pb-comment";
+          div.innerHTML = `
+            <div class="pb-comment-meta">
+              <span class="pb-comment-author">${esc(newComment.authorName)}</span>
+              <span class="pb-comment-date">just now</span>
+            </div>
+            <p class="pb-comment-body">${esc(newComment.body)}</p>
+          `;
+          commentsList.appendChild(div);
+        }
+      } catch {
+        // silently fail — keep text in input
+      } finally {
+        postBtn.disabled = false;
+        postBtn.textContent = "Post comment";
+      }
+    });
   }
 
   private renderBasic(body: HTMLElement, task: EmbedTask, projectId: string, apiUrl: string) {
     const pc = PRIORITY_COLOR[task.priority] ?? "#64748b";
     body.innerHTML = `
       <h2 style="font-size:17px;font-weight:600;color:var(--pb-text);margin:0">${esc(task.title)}</h2>
-      <div style="display:flex;gap:8px">
-        <span class="pb-badge" style="background:${pc}22;color:${pc};border-color:${pc}44">${task.priority}</span>
+      <div class="pb-meta-grid">
+        <div class="pb-meta-col">
+          <p class="pb-section-label">Priority</p>
+          <span class="pb-badge" style="background:${pc}22;color:${pc};border-color:${pc}44">${task.priority}</span>
+        </div>
       </div>
       ${task.guestName ? `
       <div>

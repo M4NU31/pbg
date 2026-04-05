@@ -34,9 +34,15 @@ export async function GET(req: NextRequest, { params }: Params) {
             t.browserName, t.browserVersion, t.osName, t.osVersion,
             t.deviceType, t.screenWidth, t.screenHeight,
             t.domSelector, t.pinX, t.pinY,
-            bc.name AS columnName
+            bc.name AS columnName,
+            p.slug AS projectSlug,
+            uc.name AS creatorName,
+            ua.name AS assigneeName
      FROM Task t
      LEFT JOIN BoardColumn bc ON t.columnId = bc.id
+     LEFT JOIN Project p ON t.projectId = p.id
+     LEFT JOIN User uc ON t.creatorId = uc.id
+     LEFT JOIN User ua ON t.assigneeId = ua.id
      WHERE t.id = ?
        AND t.projectId IN (SELECT id FROM Project WHERE embedKey = ?)`,
     [taskId, key]
