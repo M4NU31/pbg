@@ -1,8 +1,5 @@
 import type { EmbedTask } from "../core/PunchBug";
 
-const STATUS_COLOR: Record<string, string> = {
-  BACKLOG: "#64748b", TODO: "hsl(348,100%,52%)", DOING: "#f59e0b", DONE: "#10b981", CLOSED: "#475569",
-};
 const PRIORITY_COLOR: Record<string, string> = {
   LOW: "#64748b", MEDIUM: "#f59e0b", HIGH: "#f97316", CRITICAL: "#ef4444",
 };
@@ -40,6 +37,10 @@ function timeAgo(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export class TaskPanel {
   private shadow: ShadowRoot;
   private overlay: HTMLElement | null = null;
@@ -61,7 +62,7 @@ export class TaskPanel {
     const header = document.createElement("div");
     header.className = "pb-panel-header";
     header.innerHTML = `
-      <span style="font-size:12px;font-weight:700;color:#475569;letter-spacing:0.05em">#${task.taskNumber}</span>
+      <span style="font-size:12px;font-family:monospace;color:var(--pb-text-muted)">#${task.taskNumber}</span>
       <button class="pb-close-btn" id="pb-tpanel-close">&#x2715;</button>
     `;
 
@@ -69,12 +70,16 @@ export class TaskPanel {
     const body = document.createElement("div");
     body.className = "pb-panel-body";
     body.innerHTML = `
-      <div class="pb-skeleton" style="height:22px;width:70%"></div>
+      <div class="pb-skeleton" style="height:24px;width:65%"></div>
       <div style="display:flex;gap:8px">
-        <div class="pb-skeleton" style="height:20px;width:80px;border-radius:9999px"></div>
-        <div class="pb-skeleton" style="height:20px;width:80px;border-radius:9999px"></div>
+        <div class="pb-skeleton" style="height:20px;width:90px;border-radius:9999px"></div>
+        <div class="pb-skeleton" style="height:20px;width:90px;border-radius:9999px"></div>
       </div>
-      <div class="pb-skeleton" style="height:180px;border-radius:8px"></div>
+      <div>
+        <div class="pb-skeleton" style="height:12px;width:80px;margin-bottom:8px"></div>
+        <div class="pb-skeleton" style="height:16px;width:100%"></div>
+      </div>
+      <div class="pb-skeleton" style="height:180px;border-radius:6px"></div>
     `;
 
     panel.appendChild(header);
@@ -90,71 +95,103 @@ export class TaskPanel {
     fetch(`${apiUrl}/api/embed/task/${task.id}?key=${encodeURIComponent(embedKey)}`)
       .then((r) => r.ok ? r.json() : Promise.reject(r.status))
       .then((full: FullTask) => this.renderFull(body, full, projectId, apiUrl))
-      .catch(() => {
-        // Fallback to basic info if fetch fails
-        this.renderBasic(body, task, projectId, apiUrl);
-      });
+      .catch(() => this.renderBasic(body, task, projectId, apiUrl));
   }
 
   private renderFull(body: HTMLElement, task: FullTask, projectId: string, apiUrl: string) {
-    const sc = STATUS_COLOR[task.status]   ?? "#64748b";
     const pc = PRIORITY_COLOR[task.priority] ?? "#64748b";
 
-    const screenshotHtml = task.screenshotUrl
-      ? `<div>
-           <div class="pb-section-label">Screenshot</div>
-           <div class="pb-screenshot-wrap" id="pb-tp-sc-wrap">
-             <img class="pb-screenshot-preview" src="${task.screenshotUrl}" alt="Screenshot" id="pb-tp-sc-img" />
-             <button class="pb-screenshot-expand" id="pb-tp-expand" title="View full screenshot">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-                 <polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline>
-                 <line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>
-               </svg>
-             </button>
-           </div>
-         </div>`
-      : "";
+    // ── Screenshot ──────────────────────────────────────────────────────────
+    const screenshotHtml = task.screenshotUrl ? `
+      <div>
+        <p class="pb-section-label">Screenshot</p>
+        <div class="pb-screenshot-wrap" id="pb-tp-sc-wrap">
+          <img class="pb-screenshot-preview" src="${task.screenshotUrl}" alt="Screenshot" />
+          <button class="pb-screenshot-expand" id="pb-tp-expand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+              <polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+            Expand
+          </button>
+        </div>
+      </div>` : "";
 
-    const envHtml = (task.browserName || task.pageUrl)
-      ? `<div>
-           <div class="pb-section-label">Environment</div>
-           <div class="pb-info-box">
-             ${task.pageUrl ? `<div class="pb-info-row"><span class="pb-info-icon">&#127760;</span><span class="pb-info-val">${task.pageUrl}</span></div>` : ""}
-             ${task.browserName ? `<div class="pb-info-row"><span class="pb-info-icon">&#128187;</span><span class="pb-info-val">${task.browserName} ${task.browserVersion ?? ""} &bull; ${task.osName ?? ""} ${task.osVersion ?? ""} &bull; ${task.screenWidth ?? "?"}&#xd7;${task.screenHeight ?? "?"} &bull; ${task.deviceType ?? ""}</span></div>` : ""}
-             ${task.domSelector ? `<div class="pb-info-row"><span class="pb-info-icon">&#128279;</span><code style="font-size:11px;color:#94a3b8">${task.domSelector}</code></div>` : ""}
-           </div>
-         </div>`
-      : "";
+    // ── Environment badges ──────────────────────────────────────────────────
+    const envBadges: string[] = [];
+    if (task.pageUrl) {
+      envBadges.push(`<a href="${task.pageUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none">
+        <span class="pb-badge-outline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          ${esc(task.pageUrl.replace(/^https?:\/\//, ""))}
+        </span>
+      </a>`);
+    }
+    if (task.browserName) {
+      envBadges.push(`<span class="pb-badge-outline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11" style="flex-shrink:0"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        ${esc(task.browserName)} ${esc(task.browserVersion ?? "")}
+      </span>`);
+    }
+    if (task.osName) {
+      envBadges.push(`<span class="pb-badge-outline">${esc(task.osName)} ${esc(task.osVersion ?? "")}</span>`);
+    }
+    if (task.screenWidth) {
+      envBadges.push(`<span class="pb-badge-outline">${task.screenWidth}×${task.screenHeight}</span>`);
+    }
+    if (task.deviceType) {
+      envBadges.push(`<span class="pb-badge-outline">${esc(task.deviceType)}</span>`);
+    }
+    const envHtml = envBadges.length ? `
+      <div>
+        <p class="pb-section-label">Environment</p>
+        <div class="pb-env-row">${envBadges.join("")}</div>
+      </div>` : "";
 
-    const commentsHtml = task.comments.length > 0
+    // ── DOM selector ────────────────────────────────────────────────────────
+    const selectorHtml = task.domSelector ? `
+      <div>
+        <p class="pb-section-label">Element</p>
+        <code class="pb-code">${esc(task.domSelector)}</code>
+      </div>` : "";
+
+    // ── Comments ────────────────────────────────────────────────────────────
+    const commentsHtml = task.comments.length
       ? task.comments.map((c) => `
           <div class="pb-comment">
-            <div class="pb-comment-author">${c.authorName}</div>
-            <div class="pb-comment-body">${c.body.replace(/</g, "&lt;")}</div>
-            <div class="pb-comment-date">${timeAgo(c.createdAt)}</div>
+            <div class="pb-comment-meta">
+              <span class="pb-comment-author">${esc(c.authorName)}</span>
+              <span class="pb-comment-date">${timeAgo(c.createdAt)}</span>
+            </div>
+            <p class="pb-comment-body">${esc(c.body)}</p>
           </div>`).join("")
       : `<p class="pb-no-comments">No comments yet.</p>`;
 
     body.innerHTML = `
       <!-- Title -->
-      <h2 style="font-size:16px;font-weight:700;color:#f1f5f9;margin:0;line-height:1.4">${task.title}</h2>
+      <h2 style="font-size:17px;font-weight:600;color:var(--pb-text);margin:0;line-height:1.4">${esc(task.title)}</h2>
 
-      <!-- Badges -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${task.columnName ? `<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:9999px;background:#1e293b;color:#94a3b8;border:1px solid #334155">${task.columnName}</span>` : ""}
-        <span class="pb-badge" style="background:${sc}22;color:${sc};border-color:${sc}44">${task.status}</span>
+      <!-- Column + Priority badges -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${task.columnName
+          ? `<span class="pb-badge-outline">${esc(task.columnName)}</span>`
+          : ""}
         <span class="pb-badge" style="background:${pc}22;color:${pc};border-color:${pc}44">${task.priority}</span>
       </div>
 
       <!-- Description -->
-      ${task.description ? `<div>
-        <div class="pb-section-label">Description</div>
-        <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0;white-space:pre-wrap">${task.description.replace(/</g, "&lt;")}</p>
+      ${task.description ? `
+      <div>
+        <p class="pb-section-label">Description</p>
+        <p style="font-size:13px;color:var(--pb-text);line-height:1.6;margin:0;white-space:pre-wrap">${esc(task.description)}</p>
       </div>` : ""}
 
-      <!-- Reporter -->
-      ${task.guestName ? `<div style="font-size:12px;color:#64748b">
-        Reported by <strong style="color:#94a3b8">${task.guestName}</strong> &bull; ${timeAgo(task.createdAt)}
+      <!-- Reported by -->
+      ${task.guestName ? `
+      <div>
+        <p class="pb-section-label">Reported by</p>
+        <p style="font-size:13px;color:var(--pb-text);margin:0">${esc(task.guestName)}</p>
+        <p style="font-size:11px;color:var(--pb-text-muted);margin:3px 0 0">${timeAgo(task.createdAt)}</p>
       </div>` : ""}
 
       <!-- Screenshot -->
@@ -163,10 +200,13 @@ export class TaskPanel {
       <!-- Environment -->
       ${envHtml}
 
+      <!-- Element -->
+      ${selectorHtml}
+
       <!-- Comments -->
       <div>
-        <div class="pb-section-label">Comments (${task.comments.length})</div>
-        <div style="display:flex;flex-direction:column;gap:8px">${commentsHtml}</div>
+        <p class="pb-section-label">Comments (${task.comments.length})</p>
+        <div class="pb-comments-list">${commentsHtml}</div>
       </div>
 
       <!-- View in board -->
@@ -177,25 +217,30 @@ export class TaskPanel {
       </a>
     `;
 
-    // Expand screenshot
+    // Wire up screenshot expand
     if (task.screenshotUrl) {
-      this.shadow.getElementById("pb-tp-expand")?.addEventListener("click", () => {
+      this.shadow.getElementById("pb-tp-expand")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.openLightbox(task.screenshotUrl!);
+      });
+      this.shadow.getElementById("pb-tp-sc-wrap")?.addEventListener("click", () => {
         this.openLightbox(task.screenshotUrl!);
       });
     }
   }
 
   private renderBasic(body: HTMLElement, task: EmbedTask, projectId: string, apiUrl: string) {
-    const sc = STATUS_COLOR[task.status]   ?? "#64748b";
     const pc = PRIORITY_COLOR[task.priority] ?? "#64748b";
-
     body.innerHTML = `
-      <h2 style="font-size:16px;font-weight:700;color:#f1f5f9;margin:0">${task.title}</h2>
+      <h2 style="font-size:17px;font-weight:600;color:var(--pb-text);margin:0">${esc(task.title)}</h2>
       <div style="display:flex;gap:8px">
-        <span class="pb-badge" style="background:${sc}22;color:${sc};border-color:${sc}44">${task.status}</span>
         <span class="pb-badge" style="background:${pc}22;color:${pc};border-color:${pc}44">${task.priority}</span>
       </div>
-      ${task.guestName ? `<p style="font-size:12px;color:#64748b;margin:0">Reported by <strong style="color:#94a3b8">${task.guestName}</strong></p>` : ""}
+      ${task.guestName ? `
+      <div>
+        <p class="pb-section-label">Reported by</p>
+        <p style="font-size:13px;color:var(--pb-text);margin:0">${esc(task.guestName)}</p>
+      </div>` : ""}
       <a class="pb-view-board-btn"
          href="${apiUrl}/projects/${projectId}?task=${task.id}"
          target="_blank" rel="noopener noreferrer">
