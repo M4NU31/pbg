@@ -16,7 +16,9 @@ export function EmbedSnippet({ embedKey, embedUrl }: EmbedSnippetProps) {
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
 
-  const snippet = `<script\n  src="${embedUrl}"\n  data-key="${embedKey}"\n  async\n></script>`;
+  const screenshotServer = process.env.NEXT_PUBLIC_SCREENSHOT_SERVER_URL;
+  const screenshotLine = screenshotServer ? `\n  data-screenshot-server="${screenshotServer}"` : "";
+  const snippet = `<script\n  src="${embedUrl}"\n  data-key="${embedKey}"${screenshotLine}\n  async\n></script>`;
 
   async function copySnippet() {
     await navigator.clipboard.writeText(snippet);

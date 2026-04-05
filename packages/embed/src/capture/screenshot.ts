@@ -24,36 +24,42 @@ export interface ServerCaptureOptions {
 }
 
 /**
- * Ask the screenshot server to capture the page at (x, y) and return the
- * hosted image URL.  Throws if the server is unreachable or returns an error.
+ * Ask the screenshot server to capture the page at (x, y) and return a
+ * base64 data URL of the cropped image.
+ * Throws if the server is unreachable or returns an error.
  */
 export async function captureViaServer(
   serverUrl: string,
   opts: ServerCaptureOptions
 ): Promise<string> {
-  const res = await fetch(`${serverUrl.replace(/\/$/, "")}/screenshot`, {
+  const res = await fetch(`${serverUrl.replace(/\/$/, "")}/screenshot/task`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      url:            opts.url,
-      x:              opts.x,
-      y:              opts.y,
-      delay:          opts.delay           ?? 1500,
-      viewportWidth:  opts.viewportWidth   ?? window.innerWidth,
-      viewportHeight: opts.viewportHeight  ?? window.innerHeight,
-      cropWidth:      480,
-      cropHeight:     320,
+      url:       opts.url,
+      x:         opts.x,
+      y:         opts.y,
+      viewport: {
+        width:  opts.viewportWidth  ?? window.innerWidth,
+        height: opts.viewportHeight ?? window.innerHeight,
+      },
+      delay_ms:  opts.delay ?? 1500,
+      crop_size: { width: 480, height: 320 },
+      format:    "jpeg",
     }),
   });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `Server error ${res.status}`);
+    throw new Error((body as { detail?: string }).detail ?? `Server error ${res.status}`);
   }
 
-  const { url } = await res.json() as { url: string };
-  if (!url) throw new Error("Screenshot server returned no URL");
-  return url;
+  // Service returns raw image bytes — convert to base64 data URL
+  const buffer = await res.arrayBuffer();
+  const bytes  = new Uint8Array(buffer);
+  let binary   = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return `data:image/jpeg;base64,${btoa(binary)}`;
 }
 
 // ---------------------------------------------------------------------------

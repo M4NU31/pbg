@@ -2,29 +2,36 @@ import path from "path";
 import fs from "fs/promises";
 
 const SCREENSHOTS_DIR = path.join(process.cwd(), "public", "screenshots");
+const SCREENSHOT_SERVICE_URL = process.env.SCREENSHOT_SERVICE_URL || "http://127.0.0.1:8000";
 
 export function getScreenshotPath(projectId: string): string {
   return path.join(SCREENSHOTS_DIR, `${projectId}.jpg`);
 }
 
 /**
- * Fetches a screenshot of `siteUrl` via thum.io and saves it permanently
- * to public/screenshots/{projectId}.jpg so it's served locally from disk.
+ * Captures a screenshot of `siteUrl` via the local screenshoter service and
+ * saves it to public/screenshots/{projectId}.jpg.
  * Called once on project creation; retake is triggered manually.
  */
 export async function captureScreenshot(projectId: string, siteUrl: string): Promise<void> {
   await fs.mkdir(SCREENSHOTS_DIR, { recursive: true });
 
-  // thum.io renders the page and returns a JPEG — we download and cache it locally
-  const thumbUrl = `https://image.thum.io/get/width/1280/crop/800/noanimate/${siteUrl}`;
-
-  const response = await fetch(thumbUrl, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; PunchQA/1.0)" },
+  const response = await fetch(`${SCREENSHOT_SERVICE_URL}/screenshot/page`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: siteUrl,
+      viewport: { width: 1280, height: 800 },
+      full_page: false,
+      format: "jpeg",
+      quality: 80,
+    }),
     signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
-    throw new Error(`Screenshot service returned ${response.status}`);
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Screenshot service returned ${response.status}: ${(err as { detail?: string }).detail ?? ""}`);
   }
 
   const buffer = await response.arrayBuffer();
