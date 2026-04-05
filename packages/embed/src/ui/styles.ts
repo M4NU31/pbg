@@ -21,28 +21,7 @@ export const EMBED_STYLES = `
     --pb-badge-border: hsl(214.3 31.8% 88%);
   }
 
-  /* OS-level dark mode (fallback when JS hasn't run yet) */
-  @media (prefers-color-scheme: dark) {
-    :host {
-      --pb-bg:           hsl(0 0% 7%);
-      --pb-surface:      hsl(0 0% 12%);
-      --pb-muted:        hsl(0 0% 18%);
-      --pb-border:       hsl(0 0% 20%);
-      --pb-text:         hsl(0 0% 95%);
-      --pb-text-muted:   hsl(0 0% 55%);
-      --pb-text-subtle:  hsl(0 0% 40%);
-      --pb-code-bg:      hsl(0 0% 18%);
-      --pb-comment-bg:   hsl(0 0% 12%);
-      --pb-input-bg:     hsl(0 0% 20%);
-      --pb-overlay-bg:   rgba(0,0,0,0.6);
-      --pb-skeleton-a:   hsl(0 0% 18%);
-      --pb-skeleton-b:   hsl(0 0% 25%);
-      --pb-badge-bg:     hsl(0 0% 18%);
-      --pb-badge-border: hsl(0 0% 20%);
-    }
-  }
-
-  /* Site-level dark mode — set by JS when site's own dark class is detected */
+  /* Dark theme — applied by JS via localStorage preference (default: dark) */
   :host(.pb-dark) {
     --pb-bg:           hsl(0 0% 7%);
     --pb-surface:      hsl(0 0% 12%);
@@ -110,6 +89,25 @@ export const EMBED_STYLES = `
   .pb-trigger:hover  { background: hsl(348,100%,42%); }
   .pb-trigger.pb-active { background: hsl(348,100%,30%); }
   .pb-trigger svg { width: 18px; height: 18px; writing-mode: horizontal-tb; }
+
+  /* ── Theme toggle button (inside trigger) ───────────────────────────────── */
+  .pb-theme-toggle {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+    width: 24px;
+    height: 24px;
+    writing-mode: horizontal-tb;
+    transition: background 0.15s;
+  }
+  .pb-theme-toggle:hover { background: rgba(255,255,255,0.3); }
 
   /* ── Overlay backdrop ───────────────────────────────────────────────────── */
   .pb-overlay {

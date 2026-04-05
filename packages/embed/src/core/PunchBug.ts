@@ -84,13 +84,22 @@ export class PunchBug {
                  M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path>
       </svg>
       <span>Report</span>
+      <button id="pb-theme-toggle" class="pb-theme-toggle" title="Toggle dark/light mode"></button>
     `;
     this.shadow.appendChild(this.triggerBtn);
-    this.triggerBtn.addEventListener("click", () => this.toggle());
+    this.triggerBtn.addEventListener("click", (e) => {
+      // Don't start picking if the theme toggle was clicked
+      if ((e.target as HTMLElement).closest("#pb-theme-toggle")) return;
+      this.toggle();
+    });
+    this.shadow.getElementById("pb-theme-toggle")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.toggleTheme();
+    });
 
     this.taskPanel = new TaskPanel(this.shadow);
 
-    this.watchTheme();
+    this.initTheme();
     this.fetchColumns();
     this.fetchTags();
     this.fetchPageTasks();
@@ -220,42 +229,38 @@ export class PunchBug {
 
   refreshPins() { this.fetchPageTasks(); }
 
-  // ── Theme detection ───────────────────────────────────────────────────────
+  // ── Theme ─────────────────────────────────────────────────────────────────
 
-  private applyTheme() {
-    const html = document.documentElement;
-    const body = document.body;
-    const isDark =
-      html.classList.contains("dark") ||
-      html.getAttribute("data-theme") === "dark" ||
-      html.getAttribute("data-color-scheme") === "dark" ||
-      body?.classList.contains("dark") ||
-      body?.classList.contains("dark-mode") ||
-      body?.getAttribute("data-theme") === "dark" ||
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
+  private static THEME_KEY = "pb-theme";
 
-    this.hostEl.classList.toggle("pb-dark", isDark);
-    this.hostEl.classList.toggle("pb-light", !isDark);
+  private initTheme() {
+    // Default: dark (matches dashboard default). User can toggle via the button.
+    const stored = localStorage.getItem(PunchBug.THEME_KEY);
+    const isDark = stored ? stored === "dark" : true;
+    this.applyThemeClass(isDark);
   }
 
-  private watchTheme() {
-    this.applyTheme();
+  private applyThemeClass(isDark: boolean) {
+    this.hostEl.classList.toggle("pb-dark", isDark);
+    this.hostEl.classList.toggle("pb-light", !isDark);
+    // Show sun icon when dark (clicking switches to light), moon when light (clicking switches to dark)
+    const btn = this.shadow.getElementById("pb-theme-toggle");
+    if (btn) btn.innerHTML = isDark ? this.sunIcon() : this.moonIcon();
+  }
 
-    // Re-apply when OS preference changes
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.applyTheme());
+  private toggleTheme() {
+    const isDark = this.hostEl.classList.contains("pb-dark");
+    const next = !isDark;
+    localStorage.setItem(PunchBug.THEME_KEY, next ? "dark" : "light");
+    this.applyThemeClass(next);
+  }
 
-    // Re-apply when the site changes its own dark/light class or attribute
-    const observer = new MutationObserver(() => this.applyTheme());
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "data-theme", "data-color-scheme"],
-    });
-    if (document.body) {
-      observer.observe(document.body, {
-        attributes: true,
-        attributeFilter: ["class", "data-theme"],
-      });
-    }
+  private sunIcon() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="writing-mode:horizontal-tb"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="7.05" y2="7.05"/><line x1="16.95" y1="16.95" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="7.05" y2="16.95"/><line x1="16.95" y1="7.05" x2="19.78" y2="4.22"/></svg>`;
+  }
+
+  private moonIcon() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="writing-mode:horizontal-tb"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
   }
 
   // ── Picking mode ──────────────────────────────────────────────────────────
