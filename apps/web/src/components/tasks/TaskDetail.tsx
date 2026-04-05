@@ -160,6 +160,9 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
   const [editingCommentBody, setEditingCommentBody] = useState("");
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [screenshotLightbox, setScreenshotLightbox] = useState(false);
+  // Tracks when any Select dropdown is open — prevents the click-outside handler
+  // from closing the panel when Radix's dismissable layer captures the mousedown.
+  const anyDropdownOpen = useRef(false);
 
   async function saveCommentEdit(commentId: string) {
     if (!editingCommentBody.trim()) return;
@@ -205,8 +208,8 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
-      // Don't close while a confirm dialog or mention dropdown is open
-      if (confirmArchive || confirmDelete || showMentions) return;
+      // Don't close while any overlay/dropdown/lightbox is active
+      if (confirmArchive || confirmDelete || showMentions || anyDropdownOpen.current || screenshotLightbox) return;
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         // Don't close if clicking inside any portal/dialog (dropdowns, selects, toasts…)
         const target = e.target as HTMLElement;
@@ -224,7 +227,7 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
     }
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [onClose, confirmArchive, confirmDelete, showMentions]);
+  }, [onClose, confirmArchive, confirmDelete, showMentions, screenshotLightbox]);
 
   // ── API helpers ──────────────────────────────────────────────────
   async function updateTask(data: Record<string, unknown>) {
@@ -408,7 +411,8 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
             <div className="flex items-center gap-3">
               <div className="flex-1">
                 <label className="text-xs text-muted-foreground mb-1 block">Column</label>
-                <Select value={task.columnId ?? ""} onValueChange={(v) => updateTask({ columnId: v })}>
+                <Select value={task.columnId ?? ""} onValueChange={(v) => updateTask({ columnId: v })}
+                  onOpenChange={(open) => { anyDropdownOpen.current = open; }}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="No column" /></SelectTrigger>
                   <SelectContent>
                     {columns.map((col) => <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>)}
@@ -417,7 +421,8 @@ export function TaskDetail({ taskId, projectId, projectSlug, members, currentUse
               </div>
               <div className="flex-1">
                 <label className="text-xs text-muted-foreground mb-1 block">Priority</label>
-                <Select value={task.priority} onValueChange={(v) => updateTask({ priority: v })}>
+                <Select value={task.priority} onValueChange={(v) => updateTask({ priority: v })}
+                  onOpenChange={(open) => { anyDropdownOpen.current = open; }}>
                   <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PRIORITY_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
