@@ -1,3 +1,7 @@
+// Must be set before any I/O so libuv picks it up at thread pool init.
+// Shared hosting enforces strict per-user thread limits; 2 is safe.
+if (!process.env.UV_THREADPOOL_SIZE) process.env.UV_THREADPOOL_SIZE = "2";
+
 const path = require("path");
 const fs = require("fs");
 const { createServer } = require("http");
