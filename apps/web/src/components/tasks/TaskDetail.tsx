@@ -29,6 +29,7 @@ interface Member {
 interface TaskDetailProps {
   taskId: string;
   projectId: string;
+  projectSlug: string;
   members: Member[];
   currentUserId: string;
   currentUserRole: string;
@@ -63,7 +64,7 @@ function CommentBody({ body }: { body: string }) {
   return <p className="text-sm whitespace-pre-wrap">{parts}</p>;
 }
 
-export function TaskDetail({ taskId, projectId, members, currentUserId, currentUserRole, onClose, onUpdate }: TaskDetailProps) {
+export function TaskDetail({ taskId, projectId, projectSlug, members, currentUserId, currentUserRole, onClose, onUpdate }: TaskDetailProps) {
   const { data: task, mutate } = useSWR(`/api/projects/${projectId}/tasks/${taskId}`, fetcher);
   const { data: columns = [] } = useSWR<{ id: string; name: string }[]>(
     `/api/projects/${projectId}/columns`,
@@ -289,7 +290,7 @@ export function TaskDetail({ taskId, projectId, members, currentUserId, currentU
   }
 
   function copyLink() {
-    navigator.clipboard.writeText(`${window.location.origin}/projects/${projectId}?task=${taskId}`).then(() => {
+    navigator.clipboard.writeText(`${window.location.origin}/projects/${projectSlug}?task=${task.taskNumber}`).then(() => {
       toast({ title: "Link copied to clipboard" });
     });
   }

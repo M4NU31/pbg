@@ -23,6 +23,7 @@ interface Member {
 
 interface ProjectTabsProps {
   projectId: string;
+  projectSlug: string;
   projectName: string;
   projectDescription: string | null;
   projectOwnerId: string;
@@ -42,6 +43,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function ProjectTabs({
   projectId,
+  projectSlug,
   projectName,
   projectDescription,
   projectOwnerId,
@@ -96,6 +98,7 @@ export function ProjectTabs({
         {activeTab === "tasks" && (
           <KanbanBoard
             projectId={projectId}
+            projectSlug={projectSlug}
             members={members}
             currentUserId={currentUserId}
             currentUserRole={currentUserRole}

@@ -6,34 +6,48 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ProjectTabs } from "@/components/board/ProjectTabs";
 
+// UUID pattern — old links and embed widget use the project UUID directly
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default async function ProjectPage({
   params,
 }: {
-  params: Promise<{ projectId: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { projectId } = await params;
+  const { slug } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
   const ADMIN_EMAIL = "manuel@punchteam.com";
   const isAdmin = session.user.email === ADMIN_EMAIL;
 
+  // Support old UUID-based URLs — look up the slug and redirect
+  if (UUID_RE.test(slug)) {
+    const row = await queryOne<{ slug: string | null }>(
+      `SELECT slug FROM Project WHERE id = ?`,
+      [slug]
+    );
+    if (row?.slug) redirect(`/projects/${row.slug}`);
+  }
+
   const memberRow = isAdmin
     ? await queryOne<Record<string, unknown>>(
         `SELECT NULL as id, 'ADMIN' as role,
-         p.id as p_id, p.name as p_name, p.description as p_description, p.ownerId as p_ownerId
-         FROM Project p WHERE p.id = ?`,
-        [projectId]
+         p.id as p_id, p.slug as p_slug, p.name as p_name, p.description as p_description, p.ownerId as p_ownerId
+         FROM Project p WHERE p.slug = ?`,
+        [slug]
       )
     : await queryOne<Record<string, unknown>>(
         `SELECT pm.id, pm.role,
-         p.id as p_id, p.name as p_name, p.description as p_description, p.ownerId as p_ownerId
+         p.id as p_id, p.slug as p_slug, p.name as p_name, p.description as p_description, p.ownerId as p_ownerId
          FROM ProjectMember pm JOIN Project p ON pm.projectId = p.id
-         WHERE pm.projectId = ? AND pm.userId = ?`,
-        [projectId, session.user.id]
+         WHERE p.slug = ? AND pm.userId = ?`,
+        [slug, session.user.id]
       );
 
   if (!memberRow) notFound();
+
+  const projectId = memberRow.p_id as string;
 
   const memberRows = await query<Record<string, unknown>>(
     `SELECT pm.id, pm.role, u.id as u_id, u.name as u_name, u.email as u_email, u.image as u_image, u.systemRole as u_systemRole
@@ -44,13 +58,13 @@ export default async function ProjectPage({
   );
 
   const project = {
-    id: memberRow.p_id as string,
+    id: projectId,
+    slug: memberRow.p_slug as string,
     name: memberRow.p_name as string,
     description: (memberRow.p_description as string | null) ?? null,
     ownerId: memberRow.p_ownerId as string,
   };
 
-  // All project members (internal + clients) — used for assignee picker and @mentions
   const members = memberRows.map((u) => ({
     id: u.u_id as string,
     name: (u.u_name as string | null) ?? null,
@@ -91,6 +105,7 @@ export default async function ProjectPage({
       <Suspense>
         <ProjectTabs
           projectId={project.id}
+          projectSlug={project.slug}
           projectName={project.name}
           projectDescription={project.description}
           projectOwnerId={project.ownerId}

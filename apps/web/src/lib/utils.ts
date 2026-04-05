@@ -31,3 +31,14 @@ export function formatRelativeTime(date: Date | string) {
 export function generateEmbedKey() {
   return `pb_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 }
+
+/** Convert a project name to a URL-safe slug, e.g. "My Project!" → "my-project" */
+export function toSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/[\s-]+/g, "-")
+    .slice(0, 50)
+    .replace(/^-+|-+$/g, "");
+}

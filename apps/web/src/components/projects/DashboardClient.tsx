@@ -10,6 +10,7 @@ import type { SystemRole } from "@/lib/auth-helpers";
 
 interface Project {
   id: string;
+  slug: string;
   name: string;
   description: string | null;
   siteUrl: string | null;

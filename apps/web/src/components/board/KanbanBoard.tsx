@@ -28,14 +28,17 @@ interface User {
   email?: string;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface KanbanBoardProps {
   projectId: string;
+  projectSlug: string;
   members: User[];
   currentUserId: string;
   currentUserRole: string;
 }
 
-export function KanbanBoard({ projectId, members, currentUserId, currentUserRole }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, projectSlug, members, currentUserId, currentUserRole }: KanbanBoardProps) {
   const canManage = currentUserRole === "ADMIN" || currentUserRole === "PROJECT_MANAGER";
 
   const router = useRouter();
@@ -52,21 +55,35 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
     { refreshInterval: 30000 }
   );
 
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(searchParams.get("task"));
+  // Resolve task param: supports both taskNumber (new) and UUID (legacy links)
+  function resolveTaskId(param: string | null): string | null {
+    if (!param) return null;
+    if (UUID_RE.test(param)) return param; // legacy UUID link
+    const byNumber = tasks.find((t) => String(t.taskNumber) === param);
+    return byNumber?.id ?? null;
+  }
+
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(() =>
+    resolveTaskId(searchParams.get("task"))
+  );
   const [createInColumnId, setCreateInColumnId] = useState<string | null>(null);
 
-  // Sync task panel with URL — handles navigation from notifications while on the same page
+  // Sync task panel with URL
   useEffect(() => {
-    setSelectedTaskId(searchParams.get("task"));
-  }, [searchParams]);
+    setSelectedTaskId(resolveTaskId(searchParams.get("task")));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, tasks]);
+
   const [addingColumn, setAddingColumn] = useState(false);
   const [newColName, setNewColName] = useState("");
   const [addingColLoading, setAddingColLoading] = useState(false);
 
   function openTask(taskId: string) {
+    const task = tasks.find((t) => t.id === taskId);
+    const param = task?.taskNumber ? String(task.taskNumber) : taskId;
     setSelectedTaskId(taskId);
     const params = new URLSearchParams(searchParams.toString());
-    params.set("task", taskId);
+    params.set("task", param);
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
@@ -196,7 +213,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
           </Button>
           {canManage && (
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/projects/${projectId}/settings`}>
+              <Link href={`/projects/${projectSlug}/settings`}>
                 <Settings className="h-4 w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Settings</span>
               </Link>
@@ -283,6 +300,7 @@ export function KanbanBoard({ projectId, members, currentUserId, currentUserRole
         <TaskDetail
           taskId={selectedTaskId}
           projectId={projectId}
+          projectSlug={projectSlug}
           members={members}
           currentUserId={currentUserId}
           currentUserRole={currentUserRole}

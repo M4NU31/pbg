@@ -12,6 +12,7 @@ import type { SystemRole } from "@/lib/auth-helpers";
 interface ProjectCardProps {
   project: {
     id: string;
+    slug: string;
     name: string;
     description: string | null;
     siteUrl: string | null;
@@ -44,13 +45,13 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
 
     // Trigger capture immediately (handles both new and existing projects
     // that never got a screenshot). Fire-and-forget — response is instant.
-    fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" }).catch(() => {});
+    fetch(`/api/projects/${project.slug}/screenshot`, { method: "POST" }).catch(() => {});
 
     let attempts = 0;
     pollRef.current = setInterval(async () => {
       attempts++;
       try {
-        const res = await fetch(`/api/projects/${project.id}/screenshot`);
+        const res = await fetch(`/api/projects/${project.slug}/screenshot`);
         if (res.ok) {
           clearInterval(pollRef.current!);
           pollRef.current = null;
@@ -76,7 +77,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
     (isAdmin || systemRole === "PROJECT_MANAGER" || project.role === "PROJECT_MANAGER") &&
     !!project.siteUrl;
 
-  const thumbSrc = `/api/projects/${project.id}/screenshot?v=${imgKey}`;
+  const thumbSrc = `/api/projects/${project.slug}/screenshot?v=${imgKey}`;
 
   function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
     // Only fires if screenshotAt was set but the file is somehow missing (edge case)
@@ -87,7 +88,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
     if (!project.siteUrl) return;
     setScreenshotLoading(true);
     try {
-      const res = await fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" });
+      const res = await fetch(`/api/projects/${project.slug}/screenshot`, { method: "POST" });
       if (res.ok) {
         // Bump key to force img reload and clear the display:none style
         setImgKey((k) => k + 1);
@@ -99,7 +100,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
 
   async function handleArchive() {
     setLoading(true);
-    await fetch(`/api/projects/${project.id}/archive`, { method: "POST" });
+    await fetch(`/api/projects/${project.slug}/archive`, { method: "POST" });
     setLoading(false);
     setArchiveOpen(false);
     router.refresh();
@@ -107,7 +108,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
 
   async function handleDelete() {
     setLoading(true);
-    await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+    await fetch(`/api/projects/${project.slug}`, { method: "DELETE" });
     setLoading(false);
     setDeleteOpen(false);
     router.refresh();
@@ -167,7 +168,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
               <Button variant="ghost" size="icon"
                 className="h-7 w-7 bg-background/80 backdrop-blur-sm hover:bg-background"
                 asChild>
-                <Link href={`/projects/${project.id}/settings`}>
+                <Link href={`/projects/${project.slug}/settings`}>
                   <Settings className="h-3.5 w-3.5" />
                 </Link>
               </Button>
@@ -231,7 +232,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
           </div>
 
           <Button asChild className="w-full mt-auto" size="sm">
-            <Link href={`/projects/${project.id}`}>Open Board</Link>
+            <Link href={`/projects/${project.slug}`}>Open Board</Link>
           </Button>
         </CardContent>
       </Card>

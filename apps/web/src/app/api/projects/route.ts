@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, withTransaction, connExecute, parseJson } from "@/lib/db";
 import { requireAuth, getSystemRole } from "@/lib/auth-helpers";
-import { generateEmbedKey } from "@/lib/utils";
+import { generateEmbedKey, toSlug } from "@/lib/utils";
 import { captureScreenshot } from "@/lib/screenshot";
 import { randomUUID } from "crypto";
 
@@ -11,7 +11,7 @@ export async function GET() {
 
   const rows = await query<Record<string, unknown>>(
     `SELECT pm.role,
-     p.id, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.screenshotAt, p.createdAt, p.updatedAt,
+     p.id, p.slug, p.name, p.description, p.siteUrl, p.embedKey, p.allowedDomains, p.ownerId, p.screenshotAt, p.createdAt, p.updatedAt,
      (SELECT COUNT(*) FROM Task WHERE projectId = p.id) as taskCount,
      (SELECT COUNT(*) FROM ProjectMember WHERE projectId = p.id) as memberCount,
      (SELECT COUNT(*) FROM Comment c JOIN Task t ON c.taskId = t.id WHERE t.projectId = p.id) as commentCount,
@@ -27,6 +27,7 @@ export async function GET() {
   return NextResponse.json(
     rows.map((row) => ({
       id: row.id,
+      slug: row.slug,
       name: row.name,
       description: row.description,
       siteUrl: row.siteUrl,
@@ -64,14 +65,22 @@ export async function POST(req: NextRequest) {
   const embedKey = generateEmbedKey();
   const userId = session!.user.id;
 
+  // Generate a unique slug from the project name
+  const baseSlug = toSlug(name.trim()) || "project";
+  let slug = baseSlug;
+  let suffix = 2;
+  while (await queryOne(`SELECT id FROM Project WHERE slug = ?`, [slug])) {
+    slug = `${baseSlug}-${suffix++}`;
+  }
+
   const defaultColumns = ["Backlog", "Dev", "Prod", "Review", "Done"];
 
   await withTransaction(async (conn) => {
     await connExecute(
       conn,
-      `INSERT INTO Project (id, name, description, siteUrl, embedKey, allowedDomains, ownerId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, '[]', ?, NOW(), NOW())`,
-      [projectId, name.trim(), description?.trim() || null, siteUrl?.trim() || null, embedKey, userId]
+      `INSERT INTO Project (id, slug, name, description, siteUrl, embedKey, allowedDomains, ownerId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, '[]', ?, NOW(), NOW())`,
+      [projectId, slug, name.trim(), description?.trim() || null, siteUrl?.trim() || null, embedKey, userId]
     );
     await connExecute(
       conn,
