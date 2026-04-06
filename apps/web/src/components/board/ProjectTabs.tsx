@@ -33,12 +33,12 @@ interface ProjectTabsProps {
   currentUserRole: string;
 }
 
-const TABS: { id: Tab; label: string }[] = [
+const ALL_TABS: { id: Tab; label: string; manageOnly?: boolean }[] = [
   { id: "tasks", label: "Tasks" },
   { id: "archived", label: "Archived tasks" },
   { id: "tags", label: "Tags" },
-  { id: "members", label: "Members" },
-  { id: "clients", label: "Clients" },
+  { id: "members", label: "Members", manageOnly: true },
+  { id: "clients", label: "Clients", manageOnly: true },
 ];
 
 export function ProjectTabs({
@@ -56,6 +56,7 @@ export function ProjectTabs({
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get("tab") as Tab) || "tasks";
   const canManage = currentUserRole === "ADMIN" || currentUserRole === "PROJECT_MANAGER";
+  const tabs = ALL_TABS.filter((t) => !t.manageOnly || canManage);
 
   function setTab(tab: Tab) {
     const params = new URLSearchParams(searchParams.toString());
@@ -76,8 +77,8 @@ export function ProjectTabs({
           )}
         </div>
         {/* Tab bar */}
-        <div className="flex items-center gap-0">
-          {TABS.map((tab) => (
+        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setTab(tab.id)}
