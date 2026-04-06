@@ -36,7 +36,7 @@ export function Sidebar({ user, systemRole, avatarUrl, isClient = false, onClose
     <aside className="flex flex-col w-60 border-r bg-card h-full">
       <div className="flex items-center gap-2 px-4 py-5 border-b">
         <img src="/logo.svg" alt="" className="h-6 w-6" />
-        <span className="font-bold text-lg flex-1">Punch - Site QA Tool</span>
+        <span className="font-bold text-sm flex-1 whitespace-nowrap">Punch - Site QA Tool</span>
         {/* Close button — only visible on mobile */}
         {onClose && (
           <Button variant="ghost" size="icon" className="h-7 w-7 md:hidden" onClick={onClose}>
