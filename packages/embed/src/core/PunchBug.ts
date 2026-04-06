@@ -141,7 +141,7 @@ export class PunchBug {
   }
 
   private createPinAtCoords(task: EmbedTask) {
-    const pin = this.buildPin(task.taskNumber);
+    const pin = this.buildPin(task.taskNumber, task.priority);
     pin.style.position = "absolute";
     pin.style.top  = `${(task.pinY ?? 0) - 11}px`;
     pin.style.left = `${(task.pinX ?? 0) - 11}px`;
@@ -154,7 +154,7 @@ export class PunchBug {
   }
 
   private createPinOnElement(el: HTMLElement, task: EmbedTask) {
-    const pin = this.buildPin(task.taskNumber);
+    const pin = this.buildPin(task.taskNumber, task.priority);
     pin.style.position = "absolute";
     document.body.appendChild(pin);
     const reposition = () => {
@@ -176,19 +176,28 @@ export class PunchBug {
     });
   }
 
-  private buildPin(number: number): HTMLButtonElement {
+  private static PRIORITY_COLOR: Record<string, string> = {
+    LOW:      "#64748b",
+    MEDIUM:   "#f59e0b",
+    HIGH:     "#f97316",
+    CRITICAL: "#ef4444",
+  };
+
+  private buildPin(number: number, priority = "MEDIUM"): HTMLButtonElement {
+    const color = PunchBug.PRIORITY_COLOR[priority] ?? "#f59e0b";
+    const hoverColor = color + "cc"; // slightly transparent for hover
     const pin = document.createElement("button");
     pin.setAttribute("data-punchbug-ignore", "true");
     pin.textContent = String(number);
     pin.style.cssText =
-      "z-index:2147483644;background:hsl(348,100%,52%);color:#fff;" +
+      `z-index:2147483644;background:${color};color:#fff;` +
       "border:2.5px solid #fff;border-radius:50%;width:24px;height:24px;" +
       "font-size:10px;font-weight:700;cursor:pointer;display:flex;" +
       "align-items:center;justify-content:center;padding:0;" +
       "box-shadow:0 2px 8px rgba(0,0,0,0.4);font-family:sans-serif;" +
       "line-height:1;transition:transform 0.15s,background 0.15s;";
-    pin.onmouseenter = () => { pin.style.transform = "scale(1.25)"; pin.style.background = "hsl(348,100%,42%)"; };
-    pin.onmouseleave = () => { pin.style.transform = "";             pin.style.background = "hsl(348,100%,52%)"; };
+    pin.onmouseenter = () => { pin.style.transform = "scale(1.25)"; pin.style.background = hoverColor; };
+    pin.onmouseleave = () => { pin.style.transform = "";             pin.style.background = color; };
     return pin;
   }
 
