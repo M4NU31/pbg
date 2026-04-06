@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne, withTransaction, connExecute, connQueryOne, parseJson } from "@/lib/db";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, taskScreenshotKey } from "@/lib/storage";
 import { EmbedReportPayload } from "@/types";
 import { randomUUID } from "crypto";
 
@@ -52,15 +52,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const taskId = randomUUID();
+  const activityId = randomUUID();
+  const projectId = project.id as string;
+  const projectSlug = (project.slug as string | null) ?? projectId;
+  const shortId = taskId.replace(/-/g, "").slice(0, 8);
+
   // Upload screenshot (base64 or download from screenshot server URL)
+  // Key: {slug}/tasks/{shortId}.jpg  — task number not known yet so we use taskId prefix
   let screenshotUrl: string | undefined;
   if (incomingScreenshotUrl) {
-    // Screenshot server provided a URL — download and re-upload to permanent storage
     try {
       const imgRes = await fetch(incomingScreenshotUrl);
       if (imgRes.ok) {
         const buffer = Buffer.from(await imgRes.arrayBuffer());
-        screenshotUrl = await uploadFile(buffer, `screenshot-${Date.now()}.png`, "image/png", "tasks");
+        const key = taskScreenshotKey(projectSlug, 0, shortId); // 0 = placeholder, shortId uniquifies
+        screenshotUrl = await uploadFile(buffer, "screenshot.jpg", "image/jpeg", key);
       }
     } catch (err) {
       console.error("Screenshot download/re-upload failed:", err);
@@ -69,15 +76,12 @@ export async function POST(req: NextRequest) {
     try {
       const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
-      screenshotUrl = await uploadFile(buffer, `screenshot-${Date.now()}.png`, "image/png", "tasks");
+      const key = taskScreenshotKey(projectSlug, 0, shortId);
+      screenshotUrl = await uploadFile(buffer, "screenshot.jpg", "image/jpeg", key);
     } catch (err) {
       console.error("Screenshot upload failed:", err);
     }
   }
-
-  const taskId = randomUUID();
-  const activityId = randomUUID();
-  const projectId = project.id as string;
 
   const taskNumber = await withTransaction(async (conn) => {
     const maxRow = await connQueryOne<{ maxNum: number | null }>(

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryOne, withTransaction, connExecute } from "@/lib/db";
 import { requireAuth, requireProjectAccess } from "@/lib/auth-helpers";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, attachmentKey } from "@/lib/storage";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string; taskId: string }> };
@@ -28,8 +28,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
   }
 
+  const project = await queryOne<{ slug: string | null }>(`SELECT slug FROM Project WHERE id = ?`, [projectId]);
+  const slug = project?.slug ?? projectId;
+
   const buffer = Buffer.from(await file.arrayBuffer());
-  const url = await uploadFile(buffer, file.name, file.type, "attached-files");
+  const key = attachmentKey(slug, file.name);
+  const url = await uploadFile(buffer, file.name, file.type, key);
 
   const attachmentId = randomUUID();
   const activityId = randomUUID();

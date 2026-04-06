@@ -1,32 +1,38 @@
 import path from "path";
 import fs from "fs/promises";
-import { query } from "@/lib/db";
-import { UPLOADS_DIR, UPLOADS_STATIC_URL } from "@/lib/storage";
+import { query, queryOne } from "@/lib/db";
+import { UPLOADS_DIR, screenshotKey, resolveUrl, uploadFile, deleteFile } from "@/lib/storage";
 
-const SCREENSHOTS_SUBDIR = "screenshots";
+const SCREENSHOT_SERVICE_URL = process.env.SCREENSHOT_SERVICE_URL || "http://127.0.0.1:8000";
 
-export function getScreenshotPath(projectId: string): string {
-  // Backward-compat: honour legacy SCREENSHOTS_DIR if still set separately
-  const legacy = process.env.SCREENSHOTS_DIR;
-  if (legacy) {
-    const dir = path.isAbsolute(legacy) ? legacy : path.join(process.cwd(), legacy);
-    return path.join(dir, `${projectId}.jpg`);
-  }
-  return path.join(UPLOADS_DIR, SCREENSHOTS_SUBDIR, `${projectId}.jpg`);
+// ── Path / URL helpers ────────────────────────────────────────────────────────
+
+/** Absolute local path for a project screenshot (local storage only). */
+export function getScreenshotPath(projectSlug: string): string {
+  return path.join(UPLOADS_DIR, screenshotKey(projectSlug));
 }
 
-export function getScreenshotStaticUrl(projectId: string): string | null {
-  // Backward-compat: honour legacy SCREENSHOTS_STATIC_URL if set
-  const legacyBase = process.env.SCREENSHOTS_STATIC_URL?.replace(/\/$/, "");
-  if (legacyBase) return `${legacyBase}/${projectId}.jpg`;
-  if (UPLOADS_STATIC_URL) return `${UPLOADS_STATIC_URL}/${SCREENSHOTS_SUBDIR}/${projectId}.jpg`;
+/**
+ * For the screenshot GET route: returns a redirect URL when the provider
+ * serves files publicly (R2, Cloudinary, or local+UPLOADS_STATIC_URL),
+ * or null when Node.js must read and stream the file itself.
+ */
+export function getScreenshotStaticUrl(projectSlug: string): string | null {
+  const STORAGE_PROVIDER = process.env.STORAGE_PROVIDER ?? "local";
+  if (STORAGE_PROVIDER === "r2" || STORAGE_PROVIDER === "cloudinary") {
+    return resolveUrl(screenshotKey(projectSlug));
+  }
+  const UPLOADS_STATIC_URL = process.env.UPLOADS_STATIC_URL?.replace(/\/$/, "") ?? null;
+  if (UPLOADS_STATIC_URL) return `${UPLOADS_STATIC_URL}/${screenshotKey(projectSlug)}`;
   return null;
 }
 
+// ── Capture ───────────────────────────────────────────────────────────────────
+
 export async function captureScreenshot(projectId: string, siteUrl: string): Promise<void> {
-  const SCREENSHOT_SERVICE_URL = process.env.SCREENSHOT_SERVICE_URL || "http://127.0.0.1:8000";
-  const outputPath = getScreenshotPath(projectId);
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  // Look up slug so file lands in {slug}/screenshot.jpg
+  const row = await queryOne<{ slug: string | null }>(`SELECT slug FROM Project WHERE id = ?`, [projectId]);
+  const slug = row?.slug ?? projectId;
 
   const response = await fetch(`${SCREENSHOT_SERVICE_URL}/screenshot/page`, {
     method: "POST",
@@ -47,10 +53,23 @@ export async function captureScreenshot(projectId: string, siteUrl: string): Pro
     throw new Error(`Screenshot service returned ${response.status}: ${(err as { detail?: string }).detail ?? ""}`);
   }
 
-  await fs.writeFile(outputPath, Buffer.from(await response.arrayBuffer()));
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const key = screenshotKey(slug);
+  const STORAGE_PROVIDER = process.env.STORAGE_PROVIDER ?? "local";
+
+  if (STORAGE_PROVIDER === "local") {
+    const filePath = path.join(UPLOADS_DIR, key);
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, buffer);
+  } else {
+    await uploadFile(buffer, "screenshot.jpg", "image/jpeg", key);
+  }
+
   await query(`UPDATE Project SET screenshotAt = NOW() WHERE id = ?`, [projectId]);
 }
 
 export async function deleteScreenshot(projectId: string): Promise<void> {
-  try { await fs.unlink(getScreenshotPath(projectId)); } catch { /* ignore */ }
+  const row = await queryOne<{ slug: string | null }>(`SELECT slug FROM Project WHERE id = ?`, [projectId]);
+  const slug = row?.slug ?? projectId;
+  await deleteFile(screenshotKey(slug));
 }
