@@ -47,18 +47,14 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
     pollRef.current = setInterval(async () => {
       attempts++;
       try {
-        // Poll the API just to check if the screenshot is ready.
-        // Use HEAD-like check: if the endpoint returns ok, fetch the fresh URL from
-        // the projects API so we get the direct R2/static URL (no redirect).
+        // Poll the JSON status endpoint — never follows a cross-origin redirect
         const res = await fetch(`/api/projects/${project.id}/screenshot`);
-        if (res.ok || res.redirected) {
+        const data = await res.json();
+        if (data.ready && data.url) {
           clearInterval(pollRef.current!);
           pollRef.current = null;
           setIsCapturing(false);
-          // Fetch the updated project to get the direct screenshotUrl
-          const proj = await fetch(`/api/projects`).then(r => r.json()).catch(() => null);
-          const updated = Array.isArray(proj) ? proj.find((p: { id: string }) => p.id === project.id) : null;
-          setImgSrc(updated?.screenshotUrl ?? res.url ?? `/api/projects/${project.id}/screenshot`);
+          setImgSrc(data.url);
         }
       } catch { /* keep polling */ }
       if (attempts >= 20) {
@@ -98,11 +94,10 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
         attempts++;
         try {
           const res = await fetch(`/api/projects/${project.id}/screenshot`);
-          if (res.ok || res.redirected) {
+          const data = await res.json();
+          if (data.ready && data.url) {
             clearInterval(poll);
-            const proj = await fetch(`/api/projects`).then(r => r.json()).catch(() => null);
-            const updated = Array.isArray(proj) ? proj.find((p: { id: string }) => p.id === project.id) : null;
-            setImgSrc(updated?.screenshotUrl ?? `/api/projects/${project.id}/screenshot?v=${Date.now()}`);
+            setImgSrc(data.url);
             setIsCapturing(false);
             setScreenshotLoading(false);
           }
