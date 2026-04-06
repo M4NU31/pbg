@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, execute } from "@/lib/db";
 import { requireAuth, requireProjectAccess, canManageProject } from "@/lib/auth-helpers";
+import { sendClientInvite } from "@/lib/send-invite";
 import { randomUUID } from "crypto";
 
 type Params = { params: Promise<{ projectId: string }> };
@@ -100,6 +101,17 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
     }
   }
+
+  // Send magic link invitation email (non-fatal if SMTP not configured)
+  const project = await queryOne<{ name: string }>(
+    `SELECT name FROM Project WHERE id = ?`,
+    [projectId]
+  );
+  sendClientInvite(
+    normalizedEmail,
+    project?.name ?? "a project",
+    session!.user.name || session!.user.email || "Your project manager",
+  ).catch(() => {/* non-fatal */});
 
   return NextResponse.json({ id, email: normalizedEmail, joined: !!existingUser }, { status: 201 });
 }
