@@ -137,7 +137,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
         {/* Site screenshot thumbnail */}
         <div className="relative w-full h-[200px] bg-muted overflow-hidden shrink-0 group">
           <img
-            key={imgKey}
+            key={imgSrc ?? "no-screenshot"}
             src={thumbSrc}
             alt={project.name}
             className="w-full h-full object-cover object-top"
