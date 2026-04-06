@@ -77,7 +77,7 @@ export function ProjectTabs({
           )}
         </div>
         {/* Tab bar */}
-        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-0 overflow-x-auto overflow-y-hidden scrollbar-none">
           {tabs.map((tab) => (
             <button
               key={tab.id}
