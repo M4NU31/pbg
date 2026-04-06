@@ -78,28 +78,20 @@ export class PunchBug {
     this.triggerBtn.setAttribute("data-punchbug-ignore", "true");
     this.triggerBtn.title = "Report a task";
     this.triggerBtn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83
                  M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path>
       </svg>
-      <span>Report</span>
-      <button id="pb-theme-toggle" class="pb-theme-toggle" title="Toggle dark/light mode"></button>
+      <span>Report Task</span>
     `;
     this.shadow.appendChild(this.triggerBtn);
-    this.triggerBtn.addEventListener("click", (e) => {
-      // Don't start picking if the theme toggle was clicked
-      if ((e.target as HTMLElement).closest("#pb-theme-toggle")) return;
-      this.toggle();
-    });
-    this.shadow.getElementById("pb-theme-toggle")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.toggleTheme();
-    });
+    this.triggerBtn.addEventListener("click", () => this.toggle());
 
     this.taskPanel = new TaskPanel(this.shadow);
 
-    this.initTheme();
+    // Always dark mode
+    this.hostEl.classList.add("pb-dark");
     this.fetchColumns();
     this.fetchTags();
     this.fetchPageTasks();

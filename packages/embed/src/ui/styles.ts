@@ -61,53 +61,36 @@ export const EMBED_STYLES = `
 
   * { box-sizing: border-box; }
 
-  /* ── Trigger button ─────────────────────────────────────────────────────── */
+  /* ── Trigger button — bottom-right corner ───────────────────────────────── */
   .pb-trigger {
     position: fixed;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
+    bottom: 24px;
+    right: 24px;
     background: hsl(348,100%,52%);
     color: white;
     border: none;
-    border-radius: 8px 0 0 8px;
-    padding: 12px 10px;
+    border-radius: 10px;
+    padding: 10px 16px;
     cursor: pointer;
     z-index: 2147483646;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
+    gap: 8px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.5px;
-    box-shadow: -2px 0 12px rgba(0,0,0,0.2);
-    transition: background 0.2s;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-  }
-  .pb-trigger:hover  { background: hsl(348,100%,42%); }
-  .pb-trigger.pb-active { background: hsl(348,100%,30%); }
-  .pb-trigger svg { width: 18px; height: 18px; writing-mode: horizontal-tb; }
-
-  /* ── Theme toggle button (inside trigger) ───────────────────────────────── */
-  .pb-theme-toggle {
-    background: rgba(255,255,255,0.15);
-    border: none;
-    border-radius: 4px;
-    color: white;
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 4px;
-    width: 24px;
-    height: 24px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    transition: background 0.2s, transform 0.15s, box-shadow 0.15s;
     writing-mode: horizontal-tb;
-    transition: background 0.15s;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
-  .pb-theme-toggle:hover { background: rgba(255,255,255,0.3); }
+  .pb-trigger:hover {
+    background: hsl(348,100%,42%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  }
+  .pb-trigger.pb-active { background: hsl(348,100%,30%); transform: none; }
 
   /* ── Overlay backdrop ───────────────────────────────────────────────────── */
   .pb-overlay {
