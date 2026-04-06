@@ -1,3 +1,4 @@
+import logoUrl from "../../assets/Punch-P-Logo-Mark.webp";
 import { ElementPicker, PickResult } from "../ui/ElementPicker";
 import { ReportForm } from "../ui/ReportForm";
 import { TaskPanel } from "../ui/TaskPanel";
@@ -78,7 +79,7 @@ export class PunchBug {
     this.triggerBtn.setAttribute("data-punchbug-ignore", "true");
     this.triggerBtn.title = "Report a task";
     this.triggerBtn.innerHTML = `
-      <img src="${config.apiUrl}/Punch-P-Logo-Mark.webp" alt="" width="18" height="18" style="display:block;object-fit:contain;flex-shrink:0" />
+      <img src="${logoUrl}" alt="" width="18" height="18" style="display:block;object-fit:contain;flex-shrink:0" />
       <span>Report Task</span>
     `;
     this.shadow.appendChild(this.triggerBtn);
