@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/hooks/use-toast";
-import { UserPlus, Trash2, CheckCircle2, Clock, Crown } from "lucide-react";
+import { UserPlus, Trash2, CheckCircle2, Clock, Crown, Send } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -154,6 +154,7 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
   const [clientLoading, setClientLoading] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
   const [revokeLoading, setRevokeLoading] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null);
 
   async function inviteClient(e: React.FormEvent) {
     e.preventDefault();
@@ -167,13 +168,30 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast({ title: "Client invited", description: `${clientEmail} can now sign in and access this project.` });
+      toast({ title: "Client invited", description: `An invitation email has been sent to ${clientEmail}.` });
       setClientEmail("");
       mutateClients();
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to invite client", variant: "destructive" });
     } finally {
       setClientLoading(false);
+    }
+  }
+
+  async function resendInvite(email: string) {
+    setResendingEmail(email);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/clients/resend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Invitation resent", description: `A new sign-in link has been sent to ${email}.` });
+    } catch {
+      toast({ title: "Failed to resend invitation", variant: "destructive" });
+    } finally {
+      setResendingEmail(null);
     }
   }
 
@@ -345,6 +363,16 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
             </Badge>
             {canManageClients && (
               <Button
+                variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                onClick={() => resendInvite(m.user.email)}
+                disabled={resendingEmail === m.user.email}
+                title="Resend sign-in link"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {canManageClients && (
+              <Button
                 variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
                 onClick={() => setRevokeTarget(m.id)}
                 title="Revoke access"
@@ -368,6 +396,16 @@ export function MembersTabView({ projectId, projectOwnerId, allMembers, currentU
             <Badge variant="outline" className="text-xs shrink-0 flex items-center gap-1">
               <Clock className="h-3 w-3" />Pending
             </Badge>
+            {canManageClients && (
+              <Button
+                variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                onClick={() => resendInvite(inv.email)}
+                disabled={resendingEmail === inv.email}
+                title="Resend invitation email"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {canManageClients && (
               <Button
                 variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
