@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, withTransaction, connExecute, parseJson } from "@/lib/db";
 import { requireAuth, getSystemRole } from "@/lib/auth-helpers";
 import { generateEmbedKey, toSlug } from "@/lib/utils";
-import { captureScreenshot } from "@/lib/screenshot";
+import { captureScreenshot, getScreenshotStaticUrl } from "@/lib/screenshot";
 import { randomUUID } from "crypto";
 
 export async function GET() {
@@ -35,6 +35,7 @@ export async function GET() {
       allowedDomains: parseJson(row.allowedDomains),
       ownerId: row.ownerId,
       screenshotAt: row.screenshotAt ?? null,
+      screenshotUrl: row.screenshotAt ? (getScreenshotStaticUrl((row.slug as string | null) ?? (row.id as string)) ?? `/api/projects/${row.id}/screenshot`) : null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       _count: { tasks: Number(row.taskCount), members: Number(row.memberCount), comments: Number(row.commentCount) },

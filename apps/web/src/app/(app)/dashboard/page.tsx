@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSystemRole } from "@/lib/auth-helpers";
 import { query, parseJson } from "@/lib/db";
+import { getScreenshotStaticUrl } from "@/lib/screenshot";
 import { DashboardClient } from "@/components/projects/DashboardClient";
 
 export default async function DashboardPage() {
@@ -48,6 +49,7 @@ export default async function DashboardPage() {
     allowedDomains: parseJson(row.allowedDomains),
     ownerId: row.ownerId as string,
     screenshotAt: (row.screenshotAt as Date | null) ?? null,
+    screenshotUrl: row.screenshotAt ? (getScreenshotStaticUrl((row.slug as string | null) ?? (row.id as string)) ?? null) : null,
     createdAt: row.createdAt as Date,
     updatedAt: row.updatedAt as Date,
     _count: {

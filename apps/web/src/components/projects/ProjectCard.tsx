@@ -18,6 +18,7 @@ interface ProjectCardProps {
     siteUrl: string | null;
     ownerId: string;
     screenshotAt: Date | null;
+    screenshotUrl: string | null;
     _count: { tasks: number; members: number; comments: number };
     owner: { name: string | null; image: string | null };
     role: string;
@@ -34,29 +35,30 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   const [screenshotLoading, setScreenshotLoading] = useState(false);
   // screenshotAt null = capture not done yet → show spinner and poll
   const [isCapturing, setIsCapturing] = useState(!project.screenshotAt && !!project.siteUrl);
-  const [imgKey, setImgKey] = useState(0);
+  const [imgSrc, setImgSrc] = useState<string | null>(project.screenshotUrl);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // If screenshotAt is null on mount, trigger a capture then poll until ready.
-  // We always POST to ensure capture runs — the server-side background task
-  // may not survive on shared hosting after the project creation response.
   useEffect(() => {
     if (!isCapturing || !project.siteUrl) return;
 
-    // Trigger capture immediately (handles both new and existing projects
-    // that never got a screenshot). Fire-and-forget — response is instant.
     fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" }).catch(() => {});
 
     let attempts = 0;
     pollRef.current = setInterval(async () => {
       attempts++;
       try {
+        // Poll the API just to check if the screenshot is ready.
+        // Use HEAD-like check: if the endpoint returns ok, fetch the fresh URL from
+        // the projects API so we get the direct R2/static URL (no redirect).
         const res = await fetch(`/api/projects/${project.id}/screenshot`);
-        if (res.ok) {
+        if (res.ok || res.redirected) {
           clearInterval(pollRef.current!);
           pollRef.current = null;
           setIsCapturing(false);
-          setImgKey((k) => k + 1);
+          // Fetch the updated project to get the direct screenshotUrl
+          const proj = await fetch(`/api/projects`).then(r => r.json()).catch(() => null);
+          const updated = Array.isArray(proj) ? proj.find((p: { id: string }) => p.id === project.id) : null;
+          setImgSrc(updated?.screenshotUrl ?? res.url ?? `/api/projects/${project.id}/screenshot`);
         }
       } catch { /* keep polling */ }
       if (attempts >= 20) {
@@ -77,7 +79,7 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
     (isAdmin || systemRole === "PROJECT_MANAGER" || project.role === "PROJECT_MANAGER") &&
     !!project.siteUrl;
 
-  const thumbSrc = `/api/projects/${project.id}/screenshot?v=${imgKey}`;
+  const thumbSrc = imgSrc ?? `/api/projects/${project.id}/screenshot`;
 
   function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
     // Only fires if screenshotAt was set but the file is somehow missing (edge case)
@@ -87,13 +89,28 @@ export function ProjectCard({ project, systemRole, currentUserId }: ProjectCardP
   async function handleRetakeScreenshot() {
     if (!project.siteUrl) return;
     setScreenshotLoading(true);
+    setIsCapturing(true);
     try {
-      const res = await fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" });
-      if (res.ok) {
-        // Bump key to force img reload and clear the display:none style
-        setImgKey((k) => k + 1);
-      }
-    } finally {
+      await fetch(`/api/projects/${project.id}/screenshot`, { method: "POST" });
+      // Poll until the new screenshot is ready
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await fetch(`/api/projects/${project.id}/screenshot`);
+          if (res.ok || res.redirected) {
+            clearInterval(poll);
+            const proj = await fetch(`/api/projects`).then(r => r.json()).catch(() => null);
+            const updated = Array.isArray(proj) ? proj.find((p: { id: string }) => p.id === project.id) : null;
+            setImgSrc(updated?.screenshotUrl ?? `/api/projects/${project.id}/screenshot?v=${Date.now()}`);
+            setIsCapturing(false);
+            setScreenshotLoading(false);
+          }
+        } catch { /* keep polling */ }
+        if (attempts >= 20) { clearInterval(poll); setIsCapturing(false); setScreenshotLoading(false); }
+      }, 3000);
+    } catch {
+      setIsCapturing(false);
       setScreenshotLoading(false);
     }
   }
