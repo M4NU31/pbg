@@ -32,10 +32,10 @@ export function LoginForm() {
         {error && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400 text-center">
             {error === "AccessDenied" || error === "DomainNotAllowed"
-              ? "This account is not authorized. Contact your project manager to get access."
+              ? "This account is not authorized. If you are a client please contact your project manager to get access."
               : error === "Verification"
-              ? "The sign-in link has expired or already been used. Ask your project manager to resend the invitation."
-              : "An error occurred. Please try again."}
+                ? "The sign-in link has expired or already been used. Ask your project manager to resend the invitation."
+                : "An error occurred. Please try again."}
           </div>
         )}
 
