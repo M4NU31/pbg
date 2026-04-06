@@ -111,15 +111,26 @@ export const authOptions: NextAuthOptions = {
     },
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account, email: emailMeta }) {
+      // For magic link requests the real email comes from user.email
+      // (NextAuth creates/fetches the user before calling signIn)
       const email = (user.email ?? "").toLowerCase();
 
-      // Always allow the internal domain
+      // If somehow email is missing (edge case), allow through — token
+      // validation at click-time will catch any abuse
+      if (!email) return true;
+
+      // Always allow the internal domain (both Google and magic link)
       if (email.endsWith(`@${ALLOWED_DOMAIN}`)) return true;
 
-      // Allow if they have a pending client invitation
+      // For magic link verification request: allow if invited
+      // For Google OAuth: allow if invited
       const invited = await isClientInvited(email);
-      if (!invited) return "/login?error=DomainNotAllowed";
+      if (!invited) {
+        // Email provider: redirect to login with error
+        // OAuth: same
+        return "/login?error=DomainNotAllowed";
+      }
 
       return true;
     },

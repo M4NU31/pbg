@@ -81,8 +81,18 @@ export function LoginForm() {
 
         {/* Magic link — for clients */}
         {sent ? (
-          <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 text-sm text-green-400 text-center">
-            Check your inbox — we sent a sign-in link to <strong>{email}</strong>.
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 text-sm text-green-400 text-center">
+              Check your inbox — we sent a sign-in link to <strong>{email}</strong>.
+              <br />
+              <span className="text-zinc-500 text-xs">Check your spam folder if it doesn&apos;t arrive.</span>
+            </div>
+            <button
+              onClick={() => { setSent(false); setEmailError(""); }}
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors text-center"
+            >
+              Didn&apos;t receive it? Try again
+            </button>
           </div>
         ) : (
           <form onSubmit={handleMagicLink} className="flex flex-col gap-3">
