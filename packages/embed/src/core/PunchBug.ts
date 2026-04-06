@@ -14,6 +14,10 @@ export interface PunchBugConfig {
   reporterName?: string;
   /** URL of the standalone screenshot server, e.g. http://localhost:3535 */
   screenshotServerUrl?: string;
+  /** Role of the logged-in user in this project (from auth-check) */
+  userRole?: string;
+  /** ID of the logged-in user (from auth-check) */
+  userId?: string;
 }
 
 export interface BoardColumn { id: string; name: string; }
@@ -153,7 +157,8 @@ export class PunchBug {
     document.body.appendChild(pin);
     pin.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.taskPanel.show(task, this.projectId, this.config.apiUrl, this.config.embedKey);
+      this.taskPanel.show(task, this.projectId, this.config.apiUrl, this.config.embedKey,
+        this.config.userRole, this.config.userId, () => this.refreshPins());
     });
     this.pinCleanups.push(() => pin.remove());
   }
@@ -172,7 +177,8 @@ export class PunchBug {
     window.addEventListener("resize", reposition, { passive: true });
     pin.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.taskPanel.show(task, this.projectId, this.config.apiUrl, this.config.embedKey);
+      this.taskPanel.show(task, this.projectId, this.config.apiUrl, this.config.embedKey,
+        this.config.userRole, this.config.userId, () => this.refreshPins());
     });
     this.pinCleanups.push(() => {
       window.removeEventListener("scroll", reposition);

@@ -32,8 +32,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Check that the user is a member of the project with this embed key
-  const member = await queryOne(
-    `SELECT pm.id FROM ProjectMember pm
+  const member = await queryOne<{ id: string; role: string }>(
+    `SELECT pm.id, pm.role FROM ProjectMember pm
      JOIN Project p ON pm.projectId = p.id
      WHERE p.embedKey = ? AND pm.userId = ?`,
     [embedKey, session.user.id]
@@ -43,5 +43,6 @@ export async function GET(req: NextRequest) {
     allowed: !!member,
     userName: session.user.name || session.user.email || null,
     userId: session.user.id,
+    role: member?.role ?? null,
   }, { headers });
 }

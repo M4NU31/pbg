@@ -157,6 +157,7 @@ export const EMBED_STYLES = `
     transition: color 0.15s, background 0.15s;
   }
   .pb-close-btn:hover { color: var(--pb-text); background: var(--pb-muted); }
+  .pb-delete-btn:hover { color: #ef4444 !important; background: rgba(239,68,68,0.1) !important; }
 
   /* ── Section label ──────────────────────────────────────────────────────── */
   .pb-section-label {

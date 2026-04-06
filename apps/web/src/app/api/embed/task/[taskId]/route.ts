@@ -3,7 +3,7 @@ import { queryOne, query } from "@/lib/db";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, PATCH, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, PATCH, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
@@ -104,6 +104,42 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     `UPDATE Task SET ${setClauses.join(", ")}, updatedAt = NOW() WHERE id = ?`,
     [...values, taskId]
   );
+
+  return NextResponse.json({ ok: true }, { headers: CORS_HEADERS });
+}
+
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const { taskId } = await params;
+  const key = req.nextUrl.searchParams.get("key");
+  const userId = req.nextUrl.searchParams.get("userId");
+
+  if (!key || !userId) {
+    return NextResponse.json({ error: "Missing key or userId" }, { status: 400, headers: CORS_HEADERS });
+  }
+
+  // Verify the user has ADMIN or PROJECT_MANAGER role in this project
+  const member = await queryOne<{ role: string }>(
+    `SELECT pm.role FROM ProjectMember pm
+     JOIN Project p ON pm.projectId = p.id
+     WHERE p.embedKey = ? AND pm.userId = ?
+       AND pm.role IN ('ADMIN', 'PROJECT_MANAGER')`,
+    [key, userId]
+  );
+
+  if (!member) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403, headers: CORS_HEADERS });
+  }
+
+  // Verify the task belongs to this project
+  const existing = await queryOne<{ id: string }>(
+    `SELECT t.id FROM Task t WHERE t.id = ? AND t.projectId IN (SELECT id FROM Project WHERE embedKey = ?)`,
+    [taskId, key]
+  );
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404, headers: CORS_HEADERS });
+  }
+
+  await query(`DELETE FROM Task WHERE id = ?`, [taskId]);
 
   return NextResponse.json({ ok: true }, { headers: CORS_HEADERS });
 }

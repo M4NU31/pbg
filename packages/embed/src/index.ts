@@ -1,13 +1,18 @@
 import { PunchBug } from "./core/PunchBug";
 
-async function checkAuth(apiUrl: string, embedKey: string): Promise<{ allowed: boolean; userName?: string }> {
+async function checkAuth(apiUrl: string, embedKey: string): Promise<{ allowed: boolean; userName?: string; userRole?: string; userId?: string }> {
   try {
     const url = new URL(apiUrl);
     const checkUrl = `${url.origin}/api/embed/auth-check?key=${encodeURIComponent(embedKey)}`;
     const res = await fetch(checkUrl, { credentials: "include" });
     if (!res.ok) return { allowed: false };
     const data = await res.json();
-    return { allowed: data.allowed === true, userName: data.userName || undefined };
+    return {
+      allowed: data.allowed === true,
+      userName: data.userName || undefined,
+      userRole: data.role || undefined,
+      userId: data.userId || undefined,
+    };
   } catch {
     return { allowed: false };
   }
@@ -40,10 +45,10 @@ async function init() {
     return;
   }
 
-  const { allowed, userName } = await checkAuth(apiUrl, embedKey);
+  const { allowed, userName, userRole, userId } = await checkAuth(apiUrl, embedKey);
   if (!allowed) return;
 
-  new PunchBug({ embedKey, apiUrl, position, reporterName: userName, screenshotServerUrl });
+  new PunchBug({ embedKey, apiUrl, position, reporterName: userName, screenshotServerUrl, userRole, userId });
 }
 
 function getDefaultApiUrl(): string {

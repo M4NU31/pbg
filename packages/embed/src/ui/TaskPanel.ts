@@ -59,8 +59,18 @@ export class TaskPanel {
     this.shadow = shadow;
   }
 
-  show(task: EmbedTask, projectId: string, apiUrl: string, embedKey: string) {
+  show(
+    task: EmbedTask,
+    projectId: string,
+    apiUrl: string,
+    embedKey: string,
+    userRole?: string | null,
+    userId?: string | null,
+    onDelete?: () => void,
+  ) {
     this.close();
+
+    const canDelete = (userRole === "ADMIN" || userRole === "PROJECT_MANAGER") && !!userId;
 
     const overlay = document.createElement("div");
     overlay.className = "pb-overlay";
@@ -71,7 +81,14 @@ export class TaskPanel {
     header.className = "pb-panel-header";
     header.innerHTML = `
       <span style="font-size:12px;font-family:monospace;color:var(--pb-text-muted)">#${task.taskNumber}</span>
-      <button class="pb-close-btn" id="pb-tpanel-close">&#x2715;</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${canDelete ? `<button class="pb-close-btn pb-delete-btn" id="pb-tpanel-delete" title="Delete task" style="color:var(--pb-text-muted)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="display:block">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>` : ""}
+        <button class="pb-close-btn" id="pb-tpanel-close">&#x2715;</button>
+      </div>
     `;
 
     const body = document.createElement("div");
@@ -95,6 +112,27 @@ export class TaskPanel {
 
     this.shadow.getElementById("pb-tpanel-close")?.addEventListener("click", () => this.close());
     overlay.addEventListener("click", (e) => { if (e.target === overlay) this.close(); });
+
+    if (canDelete) {
+      this.shadow.getElementById("pb-tpanel-delete")?.addEventListener("click", async () => {
+        const btn = this.shadow.getElementById("pb-tpanel-delete") as HTMLButtonElement | null;
+        if (!btn) return;
+        if (!confirm(`Delete task #${task.taskNumber}? This cannot be undone.`)) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch(
+            `${apiUrl}/api/embed/task/${task.id}?key=${encodeURIComponent(embedKey)}&userId=${encodeURIComponent(userId!)}`,
+            { method: "DELETE" }
+          );
+          if (res.ok) {
+            this.close();
+            onDelete?.();
+          }
+        } catch { /* non-fatal */ } finally {
+          if (btn) btn.disabled = false;
+        }
+      });
+    }
 
     // Fetch task + columns + members in parallel
     Promise.all([
