@@ -95,7 +95,14 @@ export class ElementPicker {
     e.preventDefault();
     e.stopPropagation();
     const el = e.target as HTMLElement;
-    if (el && !el.closest("#punchbug-root") && el !== this.highlightOverlay) {
+    // Clicking the trigger button (or anything inside #punchbug-root) cancels picking
+    if (el.closest("#punchbug-root")) {
+      this.clearHighlight();
+      this.stop();
+      this.onCancel();
+      return;
+    }
+    if (el && el !== this.highlightOverlay) {
       this.clearHighlight();
       this.stop();
       this.onPick({

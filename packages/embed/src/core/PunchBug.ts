@@ -259,7 +259,7 @@ export class PunchBug {
   private startPicking() {
     this.isPicking = true;
     this.triggerBtn.classList.add("pb-active");
-    this.triggerBtn.title = "Click anywhere — Esc to cancel";
+    this.triggerBtn.title = "Click an element to report — click button or Esc to cancel";
     const span = this.triggerBtn.querySelector("span");
     if (span) span.textContent = "Cancel";
     this.picker = new ElementPicker((r) => this.onPicked(r), () => this.stopPicking());
@@ -271,7 +271,7 @@ export class PunchBug {
     this.triggerBtn.classList.remove("pb-active");
     this.triggerBtn.title = "Report a task";
     const span = this.triggerBtn.querySelector("span");
-    if (span) span.textContent = "Report";
+    if (span) span.textContent = "Report Task";
     this.picker?.stop();
     this.picker = null;
   }
