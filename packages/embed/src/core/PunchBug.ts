@@ -92,6 +92,11 @@ export class PunchBug {
     this.fetchColumns();
     this.fetchTags();
     this.fetchPageTasks();
+
+    // Re-fetch tasks every 30s so pin colors/counts stay in sync with dashboard changes
+    setInterval(() => {
+      if (!this.isPicking) this.fetchPageTasks();
+    }, 30_000);
   }
 
   // ── Data fetching ─────────────────────────────────────────────────────────
