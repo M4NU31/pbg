@@ -78,11 +78,7 @@ export class PunchBug {
     this.triggerBtn.setAttribute("data-punchbug-ignore", "true");
     this.triggerBtn.title = "Report a task";
     this.triggerBtn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83
-                 M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path>
-      </svg>
+      <img src="${config.apiUrl}/Punch-P-Logo-Mark.webp" alt="" width="18" height="18" style="display:block;object-fit:contain;flex-shrink:0" />
       <span>Report Task</span>
     `;
     this.shadow.appendChild(this.triggerBtn);
