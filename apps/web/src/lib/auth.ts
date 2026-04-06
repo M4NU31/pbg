@@ -1,5 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import EmailProvider from "next-auth/providers/email";
+import nodemailer from "nodemailer";
 import { createMysql2AuthAdapter } from "./auth-adapter";
 import { query, execute } from "./db";
 import { randomUUID } from "crypto";
@@ -47,12 +49,49 @@ async function provisionClientMemberships(userId: string, email: string) {
   }
 }
 
+const transporter = nodemailer.createTransport({
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.BREVO_SMTP_LOGIN!,
+    pass: process.env.BREVO_SMTP_KEY!,
+  },
+});
+
+const APP_NAME = "Punch - Site QA";
+const FROM_EMAIL = process.env.EMAIL_FROM ?? `"${APP_NAME}" <noreply@punchteam.com>`;
+const APP_URL = process.env.NEXTAUTH_URL ?? "https://punchteam.com";
+
 export const authOptions: NextAuthOptions = {
   adapter: createMysql2AuthAdapter(),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    EmailProvider({
+      from: FROM_EMAIL,
+      sendVerificationRequest: async ({ identifier: email, url }) => {
+        await transporter.sendMail({
+          from: FROM_EMAIL,
+          to: email,
+          subject: `Sign in to ${APP_NAME}`,
+          html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#0f0f0f;border-radius:12px;color:#f4f4f5">
+              <img src="${APP_URL}/logo.svg" alt="${APP_NAME}" width="48" style="margin-bottom:24px;display:block" />
+              <h1 style="font-size:20px;font-weight:700;margin:0 0 8px">Sign in to ${APP_NAME}</h1>
+              <p style="color:#a1a1aa;font-size:14px;margin:0 0 24px">Click the button below to sign in. This link expires in 24 hours and can only be used once.</p>
+              <a href="${url}"
+                 style="display:inline-block;background:#FF1449;color:#fff;font-weight:600;font-size:15px;padding:12px 28px;border-radius:8px;text-decoration:none">
+                Sign in
+              </a>
+              <p style="color:#52525b;font-size:12px;margin:24px 0 0">If you didn't request this email, you can safely ignore it.</p>
+            </div>
+          `,
+          text: `Sign in to ${APP_NAME}\n\nClick this link to sign in (expires in 24 hours):\n${url}\n\nIf you didn't request this, ignore this email.`,
+        });
+      },
     }),
   ],
   session: {

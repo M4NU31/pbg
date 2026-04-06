@@ -2,7 +2,7 @@
 
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export function LoginForm() {
@@ -12,11 +12,30 @@ export function LoginForm() {
   const error = searchParams.get("error");
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
   useEffect(() => {
     if (status === "authenticated") router.replace(callbackUrl);
   }, [status, router, callbackUrl]);
 
   if (status === "loading" || status === "authenticated") return null;
+
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault();
+    setEmailError("");
+    if (!email.trim()) { setEmailError("Please enter your email."); return; }
+    setSending(true);
+    const res = await signIn("email", { email: email.trim(), redirect: false, callbackUrl: "/dashboard" });
+    setSending(false);
+    if (res?.error) {
+      setEmailError("This email is not authorized. Ask your team to invite you first.");
+    } else {
+      setSent(true);
+    }
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-sm px-4">
@@ -24,7 +43,7 @@ export function LoginForm() {
       <div className="flex flex-col items-center gap-2">
         <Image src="/logo.svg" alt="Punch - Site QA Tool logo" width={56} height={56} priority />
         <h1 className="text-2xl font-bold text-white tracking-tight">Punch - Site QA Tool</h1>
-        <p className="text-sm text-zinc-400">Sign in to access internal tools</p>
+        <p className="text-sm text-zinc-400">Sign in to access your workspace</p>
       </div>
 
       {/* Card */}
@@ -34,11 +53,12 @@ export function LoginForm() {
         {error && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400 text-center">
             {error === "AccessDenied" || error === "DomainNotAllowed"
-              ? "This account is not authorized. Only @punchteam.com accounts or invited clients may sign in."
+              ? "This account is not authorized. Contact your project manager to get access."
               : "An error occurred. Please try again."}
           </div>
         )}
 
+        {/* Google — for internal team */}
         <button
           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
           className="flex items-center justify-center gap-3 w-full rounded-lg bg-[#FF1449] hover:bg-[#e0103f] transition-colors text-white font-semibold py-3 px-4"
@@ -51,6 +71,41 @@ export function LoginForm() {
           </svg>
           Sign in with Google
         </button>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-zinc-700" />
+          <span className="text-xs text-zinc-500">or use your email</span>
+          <div className="flex-1 h-px bg-zinc-700" />
+        </div>
+
+        {/* Magic link — for clients */}
+        {sent ? (
+          <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 text-sm text-green-400 text-center">
+            Check your inbox — we sent a sign-in link to <strong>{email}</strong>.
+          </div>
+        ) : (
+          <form onSubmit={handleMagicLink} className="flex flex-col gap-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              className="w-full rounded-lg bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-500 transition-colors"
+              disabled={sending}
+            />
+            {emailError && (
+              <p className="text-xs text-red-400">{emailError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={sending}
+              className="w-full rounded-lg bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 transition-colors text-white font-semibold py-2.5 px-4 text-sm"
+            >
+              {sending ? "Sending…" : "Send magic link"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
