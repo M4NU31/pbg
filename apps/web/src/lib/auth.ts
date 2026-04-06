@@ -49,19 +49,21 @@ async function provisionClientMemberships(userId: string, email: string) {
   }
 }
 
-const transporter = nodemailer.createTransport({
-  host: "smtp-relay.brevo.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.BREVO_SMTP_LOGIN!,
-    pass: process.env.BREVO_SMTP_KEY!,
-  },
-});
-
 const APP_NAME = "Punch - Site QA";
 const FROM_EMAIL = process.env.EMAIL_FROM ?? `"${APP_NAME}" <noreply@punchteam.com>`;
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://punchteam.com";
+
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.BREVO_SMTP_LOGIN!,
+      pass: process.env.BREVO_SMTP_KEY!,
+    },
+  });
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: createMysql2AuthAdapter(),
@@ -73,7 +75,7 @@ export const authOptions: NextAuthOptions = {
     EmailProvider({
       from: FROM_EMAIL,
       sendVerificationRequest: async ({ identifier: email, url }) => {
-        await transporter.sendMail({
+        await getTransporter().sendMail({
           from: FROM_EMAIL,
           to: email,
           subject: `Sign in to ${APP_NAME}`,
