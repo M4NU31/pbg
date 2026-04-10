@@ -1,0 +1,26 @@
+services:
+  screenshot:
+    build:
+      context: ./packages/screenshot-server
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      LOCAL_UPLOAD_DIR: /app/uploads
+      SCREENSHOT_SERVICE_URL: http://screenshot:8000
+    volumes:
+      - uploads:/app/uploads
+
+volumes:
+  uploads:

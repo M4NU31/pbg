@@ -1,0 +1,53 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: punchbug
+      MYSQL_USER: punchbug
+      MYSQL_PASSWORD: punchbug
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./scripts/create-tables.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  screenshot:
+    build:
+      context: ./packages/screenshot-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql://punchbug:punchbug@db:3306/punchbug
+      SCREENSHOT_SERVICE_URL: http://screenshot:8000
+      LOCAL_UPLOAD_DIR: /app/uploads
+      UPLOADS_STATIC_URL: ""
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      screenshot:
+        condition: service_started
+
+volumes:
+  db_data:
+  uploads:
