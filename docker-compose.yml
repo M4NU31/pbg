@@ -18,14 +18,6 @@ services:
       timeout: 5s
       retries: 5
 
-  screenshot:
-    build:
-      context: ./packages/screenshot-server
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-
   web:
     build:
       context: .
@@ -37,16 +29,15 @@ services:
       - .env
     environment:
       DATABASE_URL: mysql://punchbug:punchbug@db:3306/punchbug
-      SCREENSHOT_SERVICE_URL: http://screenshot:8000
       LOCAL_UPLOAD_DIR: /app/uploads
       UPLOADS_STATIC_URL: ""
+      # Point to your ss_service instance
+      # SCREENSHOT_SERVICE_URL: http://<ss_service_host>:8000
     volumes:
       - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
-      screenshot:
-        condition: service_started
 
 volumes:
   db_data:
