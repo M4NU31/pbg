@@ -8,109 +8,147 @@ All notable changes to Punch QA Tool are documented here.
 
 ---
 
-## [0.8.0] — 2026-04-03
+## [0.13.0] — 2026-04-10
 
 ### Added
-- **Multi-step Create Project dialog** — 3-step wizard: project details (name, description, site URL) → embed script display → optional bulk member invite with Gmail-style tag input and autocomplete
-- **Self-hosted site screenshots** — Puppeteer captures a screenshot of the project site after creation and saves it to `public/screenshots/{id}.jpg`; auto-retakes on first 404; retake button (hover overlay) for admins and owners
-- **Dashboard project cards redesign** — site screenshot thumbnail, comment count, site URL link, action buttons in hover overlay
-- **Responsive dashboard grid** — 1 column (mobile) → 2 (tablet) → 3 (laptop) → 4 (desktop)
-- **Project search** — filters cards by name, description, or site URL in real time
-- **Pagination** — maximum 12 projects per page with previous/next controls
-- `siteUrl` field added to projects (migration v6)
+- **Docker support** — multi-stage `Dockerfile` with standalone Next.js output; `docker-compose.yml` for local dev (includes MySQL 8); `docker-compose.prod.yml` for production with external database
+- **Email magic link auth** — clients can now sign in via a 7-day magic link sent by the PM/Admin on invite; no Google account required
+- **Resend invitation** — PM/Admin can resend magic link from the Clients tab (both pending and joined clients)
+- **Role-based delete from embed** — ADMIN and PROJECT_MANAGER can delete tasks directly from the embed widget via a trash icon in the task panel header
+- `next.config.ts`: added `output: "standalone"` and R2 image domain pattern
+
+### Changed
+- Login page now shows only Google button; clients receive their access link by email (no manual email input on login)
+- `auth-check` endpoint now returns `role` and `userId` for the logged-in member, enabling role-based actions in the embed widget
 
 ### Fixed
-- Member invite search restricted to `@punchteam.com` emails — removed clients and external users from suggestions
+- Tab bar overflow on small screens — added `overflow-x-auto overflow-y-hidden` to prevent vertical scrollbar from `-mb-px` active indicator
+- Members and Clients tabs hidden from CLIENT role users
 
 ---
 
-## [0.7.0] — 2026-03-28
+## [0.12.0] — 2026-04-07
 
 ### Added
-- **Mobile-responsive layout** — collapsible sidebar with hamburger toggle, slide-in overlay with backdrop
-- **Mobile board** — columns scroll horizontally with touch support; task panel is full-width on mobile
+- **Cloudflare R2 storage** — `STORAGE_PROVIDER=r2` stores all uploads (project screenshots, task screenshots, attachments) in R2 with slug-based folder structure: `{slug}/screenshot.jpg`, `{slug}/tasks/`, `{slug}/attached-files/`
+- `deleteFile()` helper cleans up R2/local files when tasks or projects are deleted
+- Screenshot API now returns JSON `{ ready, url }` instead of a 302 redirect to avoid CORS issues with cross-origin R2 URLs
+- `/api/projects/[projectId]/screenshot/file` — serves local binary screenshots same-origin (no CORS)
+
+### Changed
+- All storage operations routed through unified `lib/storage.ts` with `uploadFile`, `deleteFile`, `resolveUrl`, `screenshotKey`, `taskScreenshotKey`, `attachmentKey`
+- Upload directory (`LOCAL_UPLOAD_DIR`) now persists outside the deploy folder — survives redeployments on Hostinger
+
+---
+
+## [0.11.0] — 2026-04-05
+
+### Added
+- **Embed trigger redesign** — bottom-right position, horizontal layout, "Report Task" label, Punch logo inlined as base64, always dark
+- **Priority-colored pins** — task pins match priority: LOW=gray, MEDIUM=amber, HIGH=orange, CRITICAL=red
+- **Real-time pin updates** — 30-second polling refreshes pin colors and positions
+- **Full task editing from embed** — column, priority, assignee dropdowns; inline title and description editing; comment posting — matches dashboard 1:1
+- `/api/embed/members` — returns project members for assignee dropdown in embed widget
+- PATCH handler on `/api/embed/task/[taskId]` — updates title, description, columnId, priority, assigneeId
 
 ### Fixed
-- Revoked client still appearing in Client Access list — now calls `router.refresh()` after revoke and handles orphaned `ProjectMember` rows with no invitation record
-- Client DELETE API now removes `ProjectMember` regardless of stored role (previously required `role = 'CLIENT'` which old rows didn't have)
-- Revoke button always visible for joined clients (was previously hidden when invitation record was missing)
+- Click on trigger button now cancels element picking (ElementPicker detects `#punchbug-root`)
+- Button label resets to "Report Task" after submitting a report
+- Radix Select double-click closing panel — fixed with 150ms delay on `anyDropdownOpen` ref
+- Escape key closes lightbox first, then panel (previously closed both simultaneously)
 
 ---
 
-## [0.6.0] — 2026-03-25
+## [0.10.0] — 2026-04-03
 
 ### Added
-- **Element direct links** — each task stores the DOM selector of the reported element; a link opens the site and highlights the element with a blue outline that fades after 4 seconds
-- **Page pins** — blue circle pins appear on the page at the reported element's position; click to open a compact TaskPanel overlay
-- **TaskPanel** (embed widget) — shows task number, title, status/priority badges, screenshot thumbnail, reporter, and a "View in board" link
-- **Screenshot lightbox** — task screenshots now open in a full-screen modal instead of expanding in-place
-
-### Fixed
-- React error #418 on task "Open site" button — replaced `<Button asChild><a>` with `onClick={() => window.open(...)}` to avoid hydration mismatch
-- `html2canvas` replaced with `html-to-image` — fixes blank screenshots caused by unsupported `oklab`/`oklch` CSS color functions
+- **Multi-step Create Project dialog** — 3-step wizard: project details → embed script → bulk member invite
+- **Self-hosted site screenshots** — dedicated screenshot microservice (FastAPI + Playwright); screenshot stored persistently under `LOCAL_UPLOAD_DIR`
+- **Dashboard redesign** — project cards with site screenshot thumbnail, comment count, site URL link, hover overlay actions
+- **Responsive dashboard grid** — 1→2→3→4 columns based on viewport
+- **Project search and pagination** — real-time search, 12 projects per page
 
 ---
 
-## [0.5.0] — 2026-03-20
+## [0.9.0] — 2026-03-30
 
 ### Added
-- **Embed widget overhaul** — renamed "Report a Bug" to "Report a Task"; removed guest name/email fields; added column selector dropdown; automatic element screenshot on submit
-- Reporter name read from authenticated session and stored on the task
-- `GET /api/embed/columns` — returns board columns for the embed key
-- `GET /api/embed/tasks` — returns tasks for the current page URL (powers page pins)
-- `POST /api/embed/auth-check` — returns `userName` and `userId` alongside `allowed`
-
-### Fixed
-- Embed build failure on Windows after `npm uninstall html2canvas` removed Vite from node_modules
+- **Client invitations** — ADMIN and PROJECT_MANAGER can invite external clients by email
+- **CLIENT role** enforced at API layer — clients see only Tasks and Tags tabs, not Members or Clients
+- `GET /api/embed/auth-check` — returns `allowed`, `userName`, `userId`, `role`
+- Brevo SMTP integration via Nodemailer for transactional emails
 
 ---
 
-## [0.4.0] — 2026-03-15
+## [0.8.0] — 2026-03-28
 
 ### Added
-- **Client invitations** — admins can invite external users by email; clients sign in with Google and land directly on their project
-- **CLIENT role** — enforced at API layer; clients can only view and interact with their own tasks; blocked from settings pages
-- **Domain restriction** — `@punchteam.com` emails always get team roles; all other emails are forced to `CLIENT` regardless of DB value
-- **Manage Users panel** — RANK1 admins can search users, view roles, and update system roles
-- `ClientInvitation` table (migration v5)
+- **Mobile-responsive layout** — collapsible sidebar with hamburger toggle
+- **Mobile board** — horizontal scroll with touch support
 
 ---
 
-## [0.3.0] — 2026-03-10
+## [0.7.0] — 2026-03-25
 
 ### Added
-- **Comment editing and deletion** — authors can edit or delete their own comments
-- **@mention support** in comments — type `@` for user autocomplete
-- **Inline task editing** — edit title, description, priority, assignee directly in the task detail panel
-- **Gravatar support** — fallback avatars for users without a profile image throughout the app
+- **Element direct links** — DOM selector stored per task; opens site and highlights the element
+- **Page pins** — circle pins at reported element positions; click opens TaskPanel overlay
+- **Screenshot lightbox** — full-screen modal for task screenshots
 
 ---
 
-## [0.2.0] — 2026-03-05
+## [0.6.0] — 2026-03-20
 
 ### Added
-- **Dynamic board columns** — rename, reorder (drag), add, and delete columns
-- **Task archive** — archive and restore individual tasks; archived tasks panel accessible from board toolbar
-- **Task permalinks** — shareable `?task=<id>` URLs open the task detail panel directly
-- **Transfer ownership** — project owners can transfer ownership to any team member
-- **Remove member** — owners/admins can remove team members with a confirmation dialog
-- Gravatar in member invite autocomplete
+- **Embed widget v2** — element picker, column selector, automatic screenshots via ss_service
+- `GET /api/embed/columns`, `GET /api/embed/tasks`, `POST /api/embed/auth-check`
 
 ---
 
-## [0.1.0] — 2026-02-28
+## [0.5.0] — 2026-03-15
 
 ### Added
-- Initial release: Punch QA Tool
+- **Dynamic board columns** — rename, reorder, add, delete
+- **Task archive** — archive and restore tasks
+- **Task permalinks** — `?task=<number>` URLs
+- **Transfer ownership**, **Remove member**
+
+---
+
+## [0.4.0] — 2026-03-10
+
+### Added
+- **Comment editing and deletion**
+- **@mention support** in comments
+- **Inline task editing** — title, description, priority, assignee
+
+---
+
+## [0.3.0] — 2026-03-05
+
+### Added
+- **Manage Users panel** — ADMIN can search users and update system roles
+- Domain restriction — `@punchteam.com` always gets team roles
+
+---
+
+## [0.2.0] — 2026-02-28
+
+### Added
+- **Notifications** — in-app notification bell for task assignments and comments
+
+---
+
+## [0.1.0] — 2026-02-20
+
+### Added
+- Initial release
 - Google OAuth sign-in (NextAuth.js)
-- Project creation with default Kanban columns (Backlog, Dev, Prod, Review, Done)
-- Task creation with title, description, priority, assignee, and column
-- Drag-and-drop task and column reordering
-- Task detail panel with comments
+- Project creation with default Kanban columns
+- Task creation, drag-and-drop, task detail panel with comments
 - File attachment upload
 - Member invite by email with autocomplete
-- Project settings (rename, allowed domains, embed key regeneration)
-- Archived projects page
+- Project settings and embed key
 - Dark/light theme toggle
 - Embed widget: floating button, report form in Shadow DOM
-- System roles: RANK1 (admin), RANK2 (PM), RANK3 (member)
+- System roles: ADMIN, PROJECT_MANAGER, MEMBER
