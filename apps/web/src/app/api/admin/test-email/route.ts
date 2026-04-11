@@ -6,24 +6,23 @@ export async function GET(req: NextRequest) {
   if (!to) return NextResponse.json({ error: "?to=email required" }, { status: 400 });
 
   const config = {
-    BREVO_SMTP_LOGIN: process.env.BREVO_SMTP_LOGIN ?? "(not set)",
-    BREVO_SMTP_KEY: process.env.BREVO_SMTP_KEY ? "✓ set (" + process.env.BREVO_SMTP_KEY.slice(0, 6) + "…)" : "(not set)",
+    SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ? "✓ set (" + process.env.SENDGRID_API_KEY.slice(0, 6) + "…)" : "(not set)",
     EMAIL_FROM: process.env.EMAIL_FROM ?? "(not set)",
     NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? "(not set)",
   };
 
-  if (!process.env.BREVO_SMTP_LOGIN || !process.env.BREVO_SMTP_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     return NextResponse.json({ ok: false, error: "Missing env vars", config });
   }
 
   try {
     const transporter = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
+      host: "smtp.sendgrid.net",
       port: 587,
       secure: false,
       auth: {
-        user: process.env.BREVO_SMTP_LOGIN,
-        pass: process.env.BREVO_SMTP_KEY,
+        user: "apikey",
+        pass: process.env.SENDGRID_API_KEY,
       },
     });
 

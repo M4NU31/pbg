@@ -55,12 +55,12 @@ const APP_URL = process.env.NEXTAUTH_URL ?? "https://punchteam.com";
 
 function getTransporter() {
   return nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
+    host: "smtp.sendgrid.net",
     port: 587,
     secure: false,
     auth: {
-      user: process.env.BREVO_SMTP_LOGIN!,
-      pass: process.env.BREVO_SMTP_KEY!,
+      user: "apikey",
+      pass: process.env.SENDGRID_API_KEY!,
     },
   });
 }

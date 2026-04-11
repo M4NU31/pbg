@@ -4,6 +4,7 @@ import { query, queryOne } from "@/lib/db";
 import { UPLOADS_DIR, screenshotKey, resolveUrl, uploadFile, deleteFile } from "@/lib/storage";
 
 const SCREENSHOT_SERVICE_URL = process.env.SCREENSHOT_SERVICE_URL || "http://127.0.0.1:8000";
+const SCREENSHOT_SERVICE_API_KEY = process.env.SCREENSHOT_SERVICE_API_KEY;
 
 // ── Path / URL helpers ────────────────────────────────────────────────────────
 
@@ -34,9 +35,12 @@ export async function captureScreenshot(projectId: string, siteUrl: string): Pro
   const row = await queryOne<{ slug: string | null }>(`SELECT slug FROM Project WHERE id = ?`, [projectId]);
   const slug = row?.slug ?? projectId;
 
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (SCREENSHOT_SERVICE_API_KEY) headers["X-API-Key"] = SCREENSHOT_SERVICE_API_KEY;
+
   const response = await fetch(`${SCREENSHOT_SERVICE_URL}/screenshot/page`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       url: siteUrl,
       viewport: { width: 1280, height: 800 },

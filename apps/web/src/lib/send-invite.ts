@@ -9,12 +9,12 @@ const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ?? "";
 
 function getTransporter() {
   return nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
+    host: "smtp.sendgrid.net",
     port: 587,
     secure: false,
     auth: {
-      user: process.env.BREVO_SMTP_LOGIN!,
-      pass: process.env.BREVO_SMTP_KEY!,
+      user: "apikey",
+      pass: process.env.SENDGRID_API_KEY!,
     },
   });
 }

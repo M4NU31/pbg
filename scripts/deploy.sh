@@ -18,8 +18,6 @@ npm run build:embed
 
 echo "=== Building Next.js ==="
 cd apps/web
-npx prisma generate
-npx prisma migrate deploy
 npx next build
 
 echo "=== Restarting app ==="
